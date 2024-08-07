@@ -1,11 +1,13 @@
+import { ContinueProxyReranker } from "../../context/rerankers/ContinueProxyReranker.js";
+import { ControlPlaneClient } from "../../control-plane/client.js";
+import { TeamAnalytics } from "../../control-plane/TeamAnalytics.js";
 import {
   ContinueRcJson,
   IDE,
   IdeSettings,
   SerializedContinueConfig,
 } from "../../index.js";
-import { ControlPlaneClient } from "../../control-plane/client.js";
-import { TeamAnalytics } from "../../control-plane/TeamAnalytics.js";
+import ContinueProxyEmbeddingsProvider from "../../indexing/embeddings/ContinueProxyEmbeddingsProvider.js";
 import ContinueProxy from "../../llm/llms/stubs/ContinueProxy.js";
 import { Telemetry } from "../../util/posthog.js";
 import { loadFullConfigNode } from "../load.js";
@@ -64,6 +66,17 @@ export default async function doLoadConfig(
       }
     },
   );
+
+  if (newConfig.embeddingsProvider?.providerName === "continue-proxy") {
+    (
+      newConfig.embeddingsProvider as ContinueProxyEmbeddingsProvider
+    ).workOsAccessToken = workOsAccessToken;
+  }
+
+  if (newConfig.reranker?.name === "continue-proxy") {
+    (newConfig.reranker as ContinueProxyReranker).workOsAccessToken =
+      workOsAccessToken;
+  }
 
   return newConfig;
 }

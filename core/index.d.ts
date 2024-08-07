@@ -127,6 +127,7 @@ export interface ContextProviderDescription {
 export type FetchFunction = (url: string | URL, init?: any) => Promise<any>;
 
 export interface ContextProviderExtras {
+  config: ContinueConfig;
   fullInput: string;
   embeddingsProvider: EmbeddingsProvider;
   reranker: Reranker | undefined;
@@ -161,21 +162,21 @@ export interface ContextSubmenuItem {
   id: string;
   title: string;
   description: string;
-  iconUrl?: string;
+  icon?: string;
   metadata?: any;
 }
 
 export interface SiteIndexingConfig {
-  startUrl: string;
-  rootUrl: string;
   title: string;
+  startUrl: string;
+  rootUrl?: string;
   maxDepth?: number;
   faviconUrl?: string;
 }
 
 export interface SiteIndexingConfig {
   startUrl: string;
-  rootUrl: string;
+  rootUrl?: string;
   title: string;
   maxDepth?: number;
 }
@@ -269,6 +270,7 @@ export interface ContextItem {
   description: string;
   editing?: boolean;
   editable?: boolean;
+  icon?: string;
 }
 
 export interface ContextItemWithId {
@@ -278,6 +280,7 @@ export interface ContextItemWithId {
   id: ContextItemId;
   editing?: boolean;
   editable?: boolean;
+  icon?: string;
 }
 
 export interface InputModifiers {
@@ -286,6 +289,7 @@ export interface InputModifiers {
 }
 
 export interface PromptLog {
+  modelTitle: string;
   completionOptions: CompletionOptions;
   prompt: string;
   completion: string;
@@ -339,6 +343,15 @@ export interface LLMOptions {
   // GCP Options
   region?: string;
   projectId?: string;
+  capabilities?: ModelCapability;
+
+  // WatsonX options
+  watsonxUrl?: string;
+  watsonxApiKey?: string;
+  watsonxZenApiKeyBase64?: string; // Required if using watsonx software with ZenApiKey auth
+  watsonxUsername?: string;
+  watsonxPassword?: string;
+  watsonxProjectId?: string;
 }
 type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<
   T,
@@ -580,6 +593,7 @@ type ModelProvider =
   | "gemini"
   | "mistral"
   | "bedrock"
+  | "sagemaker"
   | "deepinfra"
   | "flowise"
   | "groq"
@@ -590,7 +604,8 @@ type ModelProvider =
   | "deepseek"
   | "azure"
   | "openai-aiohttp"
-  | "msty";
+  | "msty"
+  | "watsonx";
 
 export type ModelName =
   | "AUTODETECT"
@@ -718,6 +733,10 @@ interface BaseCompletionOptions {
   stream?: boolean;
 }
 
+export interface ModelCapability {
+  uploadImage?: boolean;
+}
+
 export interface ModelDescription {
   title: string;
   provider: ModelProvider;
@@ -730,6 +749,7 @@ export interface ModelDescription {
   systemMessage?: string;
   requestOptions?: RequestOptions;
   promptTemplates?: { [key: string]: string };
+  capabilities?: ModelCapability;
 }
 
 export type EmbeddingsProviderName =
@@ -739,7 +759,9 @@ export type EmbeddingsProviderName =
   | "openai"
   | "cohere"
   | "free-trial"
-  | "gemini";
+  | "gemini"
+  | "continue-proxy"
+  | "deepinfra";
 
 export interface EmbedOptions {
   apiBase?: string;
@@ -758,6 +780,7 @@ export interface EmbeddingsProviderDescription extends EmbedOptions {
 
 export interface EmbeddingsProvider {
   id: string;
+  providerName: EmbeddingsProviderName;
   maxChunkSize: number;
   embed(chunks: string[]): Promise<number[][]>;
 }
@@ -767,7 +790,8 @@ export type RerankerName =
   | "voyage"
   | "llm"
   | "free-trial"
-  | "huggingface-tei";
+  | "huggingface-tei"
+  | "continue-proxy";
 
 export interface RerankerDescription {
   name: RerankerName;
@@ -886,6 +910,7 @@ export interface SerializedContinueConfig {
   reranker?: RerankerDescription;
   experimental?: ExperimentalConfig;
   analytics?: AnalyticsConfig;
+  docs?: SiteIndexingConfig[];
 }
 
 export type ConfigMergeType = "merge" | "overwrite";

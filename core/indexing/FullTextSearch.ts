@@ -29,6 +29,25 @@ export class FullTextSearchCodebaseIndex implements CodebaseIndex {
   pathWeightMultiplier = 10.0;
   artifactId = "sqliteFts";
 
+  private async _createTables(db: DatabaseConnection) {
+    await db.exec("PRAGMA journal_mode=WAL;");
+
+    await db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS fts USING fts5(
+        path,
+        content,
+        tokenize = 'trigram'
+    )`);
+
+    await db.exec(`CREATE TABLE IF NOT EXISTS fts_metadata (
+        id INTEGER PRIMARY KEY,
+        path TEXT NOT NULL,
+        cacheKey TEXT NOT NULL,
+        chunkId INTEGER NOT NULL,
+        FOREIGN KEY (chunkId) REFERENCES chunks (id),
+        FOREIGN KEY (id) REFERENCES fts (rowid)
+    )`);
+  }
+
   async *update(
     tag: IndexTag,
     results: RefreshIndexResults,
@@ -119,23 +138,6 @@ export class FullTextSearchCodebaseIndex implements CodebaseIndex {
       content: chunk.content,
       digest: chunk.cacheKey,
     }));
-  }
-
-  private async _createTables(db: DatabaseConnection) {
-    await db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS fts USING fts5(
-        path,
-        content,
-        tokenize = 'trigram'
-    )`);
-
-    await db.exec(`CREATE TABLE IF NOT EXISTS fts_metadata (
-        id INTEGER PRIMARY KEY,
-        path TEXT NOT NULL,
-        cacheKey TEXT NOT NULL,
-        chunkId INTEGER NOT NULL,
-        FOREIGN KEY (chunkId) REFERENCES chunks (id),
-        FOREIGN KEY (id) REFERENCES fts (rowid)
-    )`);
   }
 
   private buildTagFilter(tags: BranchAndDir[]): string {

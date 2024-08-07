@@ -1,5 +1,5 @@
-import { ContinueConfig, IDE, IdeSettings } from "../../index.js";
 import { ControlPlaneClient } from "../../control-plane/client.js";
+import { ContinueConfig, IDE, IdeSettings } from "../../index.js";
 import doLoadConfig from "./doLoadConfig.js";
 import { IProfileLoader } from "./IProfileLoader.js";
 

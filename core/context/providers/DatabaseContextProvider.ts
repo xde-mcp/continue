@@ -1,3 +1,4 @@
+import getDatabaseAdapter from "dbinfoz";
 import {
   ContextItem,
   ContextProviderDescription,
@@ -30,10 +31,9 @@ class DatabaseContextProvider extends BaseContextProvider {
 
     const [connectionName, table] = query.split(".");
 
-    const { getDatabaseAdapter } = await import("dbinfoz");
-
     for (const connection of connections) {
       if (connection.name === connectionName) {
+        // @ts-ignore (incorrect typings on module's declaration file)
         const adapter = getDatabaseAdapter(
           connection.connection_type,
           connection.connection,
@@ -87,9 +87,8 @@ class DatabaseContextProvider extends BaseContextProvider {
       return contextItems;
     }
 
-    const { getDatabaseAdapter } = await import("dbinfoz");
-
     for (const connection of connections) {
+      // @ts-ignore (incorrect typings on module's declaration file)
       const adapter = getDatabaseAdapter(
         connection.connection_type,
         connection.connection,

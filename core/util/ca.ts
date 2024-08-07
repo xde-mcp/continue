@@ -1,4 +1,4 @@
-import { globalAgent } from "https";
+// @ts-ignore
 
 export async function setupCa() {
   try {
@@ -10,8 +10,8 @@ export async function setupCa() {
         break;
       case "win32":
         // https://www.npmjs.com/package/win-ca#caveats
-        const { inject } = await import("win-ca");
-        inject("+");
+        const winCa = await import("win-ca");
+        winCa.inject("+");
         break;
       default:
         // @ts-ignore

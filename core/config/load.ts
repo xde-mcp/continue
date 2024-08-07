@@ -36,6 +36,8 @@ import CustomLLMClass from "../llm/llms/CustomLLM.js";
 import FreeTrial from "../llm/llms/FreeTrial.js";
 import { llmFromDescription } from "../llm/llms/index.js";
 
+import { execSync } from "child_process";
+import CodebaseContextProvider from "../context/providers/CodebaseContextProvider.js";
 import ContinueProxyContextProvider from "../context/providers/ContinueProxyContextProvider.js";
 import { fetchwithRequestOptions } from "../util/fetchWithOptions.js";
 import { copyOf } from "../util/index.js";
@@ -60,8 +62,6 @@ import {
   getPromptFiles,
   slashCommandFromPromptFile,
 } from "./promptFile.js";
-import CodebaseContextProvider from "../context/providers/CodebaseContextProvider.js";
-import { execSync } from "child_process";
 
 function resolveSerializedConfig(filepath: string): SerializedContinueConfig {
   let content = fs.readFileSync(filepath, "utf8");
@@ -360,7 +360,7 @@ async function intermediateToFinalConfig(
     new CodebaseContextProvider({}),
   ];
 
-  const DEFAULT_CONTEXT_PROVIDERS_NAMES = DEFAULT_CONTEXT_PROVIDERS.map(
+  const DEFAULT_CONTEXT_PROVIDERS_TITLES = DEFAULT_CONTEXT_PROVIDERS.map(
     ({ description: { title } }) => title,
   );
 
@@ -370,7 +370,7 @@ async function intermediateToFinalConfig(
     if (isContextProviderWithParams(provider)) {
       const cls = contextProviderClassFromName(provider.name) as any;
       if (!cls) {
-        if (!DEFAULT_CONTEXT_PROVIDERS_NAMES.includes(provider.name)) {
+        if (!DEFAULT_CONTEXT_PROVIDERS_TITLES.includes(provider.name)) {
           console.warn(`Unknown context provider ${provider.name}`);
         }
 
@@ -463,6 +463,7 @@ function finalToBrowserConfig(
       systemMessage: m.systemMessage,
       requestOptions: m.requestOptions,
       promptTemplates: m.promptTemplates as any,
+      capabilities: m.capabilities,
     })),
     systemMessage: final.systemMessage,
     completionOptions: final.completionOptions,
@@ -585,7 +586,7 @@ async function loadFullConfigNode(
       // Try config.ts first
       const configJsPath = getConfigJsPath();
       const module = await import(configJsPath);
-      // delete require.cache[require.resolve(configJsPath)];
+      delete require.cache[require.resolve(configJsPath)];
       if (!module.modifyConfig) {
         throw new Error("config.ts does not export a modifyConfig function.");
       }
@@ -602,7 +603,7 @@ async function loadFullConfigNode(
         ideSettings.remoteConfigServerUrl,
       );
       const module = await import(configJsPathForRemote);
-      // delete require.cache[require.resolve(configJsPathForRemote)];
+      delete require.cache[require.resolve(configJsPathForRemote)];
       if (!module.modifyConfig) {
         throw new Error("config.ts does not export a modifyConfig function.");
       }

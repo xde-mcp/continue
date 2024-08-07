@@ -1,4 +1,4 @@
-import { Minimatch } from "minimatch";
+import ignore, { Ignore } from "ignore";
 import path from "node:path";
 import { FileType, IDE } from "../index.d.js";
 import {
@@ -28,39 +28,8 @@ type WalkableEntry = {
 // helper struct used for the DFS walk
 type WalkContext = {
   walkableEntry: WalkableEntry;
-  ignoreFiles: IgnoreFile[];
+  ignore: Ignore;
 };
-
-class IgnoreFile {
-  private _rules: Minimatch[];
-
-  constructor(
-    public path: string,
-    public content: string,
-  ) {
-    this.path = path;
-    this.content = content;
-    this._rules = this.contentToRules(content);
-  }
-
-  public get rules() {
-    return this._rules;
-  }
-
-  private contentToRules(content: string): Minimatch[] {
-    const options = {
-      matchBase: true,
-      dot: true,
-      flipNegate: true,
-      nocase: true,
-    };
-    return content
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => !/^#|^$/.test(l))
-      .map((l) => new Minimatch(l, options));
-  }
-}
 
 class DFSWalker {
   private readonly path: string;
@@ -77,6 +46,10 @@ class DFSWalker {
 
   // walk is a depth-first search implementation
   public async *walk(): AsyncGenerator<string> {
+    const fixupFunc = await this.newPathFixupFunc(
+      this.options.returnRelativePaths ? "" : this.path,
+      this.ide,
+    );
     const root: WalkContext = {
       walkableEntry: {
         relPath: "",
@@ -84,30 +57,30 @@ class DFSWalker {
         type: 2 as FileType.Directory,
         entry: ["", 2 as FileType.Directory],
       },
-      ignoreFiles: [],
+      ignore: ignore().add(defaultIgnoreDir).add(defaultIgnoreFile),
     };
     const stack = [root];
     for (let cur = stack.pop(); cur; cur = stack.pop()) {
       const walkableEntries = await this.listDirForWalking(cur.walkableEntry);
-      const ignoreFiles = await this.getIgnoreFilesToApplyInDir(
-        cur.ignoreFiles,
+      const ignore = await this.getIgnoreToApplyInDir(
+        cur.ignore,
         walkableEntries,
       );
       for (const w of walkableEntries) {
-        if (!this.shouldInclude(w, ignoreFiles)) {
+        if (!this.shouldInclude(w, ignore)) {
           continue;
         }
         if (this.entryIsDirectory(w.entry)) {
           stack.push({
             walkableEntry: w,
-            ignoreFiles: ignoreFiles,
+            ignore: ignore,
           });
           if (this.options.onlyDirs) {
             // when onlyDirs is enabled the walker will only return directory names
-            yield w.relPath;
+            yield fixupFunc(w.relPath);
           }
         } else {
-          yield w.relPath;
+          yield fixupFunc(w.relPath);
         }
       }
     }
@@ -127,24 +100,29 @@ class DFSWalker {
     });
   }
 
-  private async getIgnoreFilesToApplyInDir(
-    parentIgnoreFiles: IgnoreFile[],
+  private async getIgnoreToApplyInDir(
+    parentIgnore: Ignore,
     walkableEntries: WalkableEntry[],
-  ): Promise<IgnoreFile[]> {
+  ): Promise<Ignore> {
     const ignoreFilesInDir = await this.loadIgnoreFiles(walkableEntries);
     if (ignoreFilesInDir.length === 0) {
-      return parentIgnoreFiles;
+      return parentIgnore;
     }
-    return Array.prototype.concat(parentIgnoreFiles, ignoreFilesInDir);
+    const patterns = ignoreFilesInDir
+      .map((c) => {
+        return c
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => !/^#|^$/.test(l));
+      })
+      .flat();
+    return ignore().add(parentIgnore).add(patterns);
   }
 
-  private async loadIgnoreFiles(
-    entries: WalkableEntry[],
-  ): Promise<IgnoreFile[]> {
+  private async loadIgnoreFiles(entries: WalkableEntry[]): Promise<string[]> {
     const ignoreEntries = entries.filter((w) => this.isIgnoreFile(w.entry));
     const promises = ignoreEntries.map(async (w) => {
-      const content = await this.ide.readFile(w.absPath);
-      return new IgnoreFile(w.relPath, content);
+      return await this.ide.readFile(w.absPath);
     });
     return Promise.all(promises);
   }
@@ -154,10 +132,7 @@ class DFSWalker {
     return this.ignoreFileNames.has(p);
   }
 
-  private shouldInclude(
-    walkableEntry: WalkableEntry,
-    ignoreFiles: IgnoreFile[],
-  ) {
+  private shouldInclude(walkableEntry: WalkableEntry, ignore: Ignore) {
     if (this.entryIsSymlink(walkableEntry.entry)) {
       // If called from the root, a symlink either links to a real file in this repository,
       // and therefore will be walked OR it linksto something outside of the repository and
@@ -166,32 +141,13 @@ class DFSWalker {
     }
     let relPath = walkableEntry.relPath;
     if (this.entryIsDirectory(walkableEntry.entry)) {
-      if (defaultIgnoreDir.ignores(walkableEntry.relPath)) {
-        return false;
-      }
       relPath = `${relPath}/`;
     } else {
       if (this.options.onlyDirs) {
         return false;
       }
-      if (defaultIgnoreFile.ignores(walkableEntry.relPath)) {
-        return false;
-      }
-      relPath = `/${relPath}`;
     }
-    let included = true;
-    for (const ignoreFile of ignoreFiles) {
-      for (const r of ignoreFile.rules) {
-        if (r.negate === included) {
-          // no need to test when the file is already NOT to be included unless this is a negate rule and vice versa
-          continue;
-        }
-        if (r.match(relPath)) {
-          included = r.negate;
-        }
-      }
-    }
-    return included;
+    return !ignore.ignores(relPath);
   }
 
   private entryIsDirectory(entry: Entry) {
@@ -200,6 +156,27 @@ class DFSWalker {
 
   private entryIsSymlink(entry: Entry) {
     return entry[1] === (64 as FileType.SymbolicLink);
+  }
+
+  // returns a function which will optionally prefix a root path and fixup the paths for the appropriate OS filesystem (i.e. windows)
+  // the reason to construct this function once is to avoid the need to call ide.pathSep() multiple times
+  private async newPathFixupFunc(
+    rootPath: string,
+    ide: IDE,
+  ): Promise<(relPath: string) => string> {
+    const pathSep = await ide.pathSep();
+    const prefix = rootPath === "" ? "" : rootPath + pathSep;
+    if (pathSep === "/") {
+      if (rootPath === "") {
+        // return a no-op function in this case to avoid unnecessary string concatentation
+        return (relPath: string) => relPath;
+      }
+      return (relPath: string) => prefix + relPath;
+    }
+    // this serves to 'fix-up' the path on Windows
+    return (relPath: string) => {
+      return prefix + relPath.split("/").join(pathSep);
+    };
   }
 }
 
@@ -213,18 +190,18 @@ export async function walkDir(
   ide: IDE,
   _options?: WalkerOptions,
 ): Promise<string[]> {
-  let entries: string[] = [];
-  const options = { ...defaultOptions, ..._options };
-  const dfsWalker = new DFSWalker(path, ide, options);
-  let relativePaths: string[] = [];
-  for await (const e of dfsWalker.walk()) {
-    relativePaths.push(e);
+  let paths: string[] = [];
+  for await (const p of walkDirAsync(path, ide, _options)) {
+    paths.push(p);
   }
-  const pathSep = await ide.pathSep();
-  const prefix = options.returnRelativePaths ? "" : path + pathSep;
+  return paths;
+}
 
-  if (pathSep === "/") {
-    return relativePaths.map((p) => prefix + p);
-  }
-  return relativePaths.map((p) => prefix + p.split("/").join(pathSep));
+export async function* walkDirAsync(
+  path: string,
+  ide: IDE,
+  _options?: WalkerOptions,
+): AsyncGenerator<string> {
+  const options = { ...defaultOptions, ..._options };
+  yield* new DFSWalker(path, ide, options).walk();
 }

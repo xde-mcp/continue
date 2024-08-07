@@ -6,21 +6,35 @@ import BaseRetrievalPipeline, {
 
 export default class NoRerankerRetrievalPipeline extends BaseRetrievalPipeline {
   async run(args: RetrievalPipelineRunArguments): Promise<Chunk[]> {
-    // Get all retrieval results
+    const { nFinal } = this.options;
+
+    // We give 1/4 weight to recently edited files, 1/4 to full text search,
+    // and the remaining 1/2 to embeddings
+    const recentlyEditedNFinal = nFinal * 0.25;
+    const ftsNFinal = nFinal * 0.25;
+    const embeddingsNFinal = nFinal - recentlyEditedNFinal - ftsNFinal;
+
     const retrievalResults: Chunk[] = [];
 
-    // Full-text search
-    const ftsResults = await this.retrieveFts(args, this.options.nFinal / 2);
-    retrievalResults.push(...ftsResults);
+    const ftsChunks = await this.retrieveFts(args, ftsNFinal);
 
-    // Embeddings
-    const embeddingResults = await this.retrieveEmbeddings(
+    const embeddingsChunks = await this.retrieveEmbeddings(
       args,
-      this.options.nFinal / 2,
+      embeddingsNFinal,
     );
-    retrievalResults.push(...embeddingResults);
 
-    const finalResults: Chunk[] = deduplicateChunks(retrievalResults);
-    return finalResults;
+    const recentlyEditedFilesChunks =
+      await this.retrieveAndChunkRecentlyEditedFiles(recentlyEditedNFinal);
+
+    retrievalResults.push(
+      ...recentlyEditedFilesChunks,
+      ...ftsChunks,
+      ...embeddingsChunks,
+    );
+
+    const deduplicatedRetrievalResults: Chunk[] =
+      deduplicateChunks(retrievalResults);
+
+    return deduplicatedRetrievalResults;
   }
 }

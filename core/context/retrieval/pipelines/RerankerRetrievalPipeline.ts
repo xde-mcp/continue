@@ -10,21 +10,24 @@ export default class RerankerRetrievalPipeline extends BaseRetrievalPipeline {
     args: RetrievalPipelineRunArguments,
   ): Promise<Chunk[]> {
     const { nRetrieve } = this.options;
-    // Get all retrieval results
+
     const retrievalResults: Chunk[] = [];
 
-    // Full-text search
-    const ftsResults = await this.retrieveFts(args, nRetrieve / 2);
-    retrievalResults.push(...ftsResults);
+    const ftsChunks = await this.retrieveFts(args, nRetrieve);
+    const embeddingsChunks = await this.retrieveEmbeddings(args, nRetrieve);
+    const recentlyEditedFilesChunks =
+      await this.retrieveAndChunkRecentlyEditedFiles(nRetrieve);
 
-    // Embeddings
-    const embeddingResults = await this.retrieveEmbeddings(args, nRetrieve);
     retrievalResults.push(
-      ...embeddingResults.slice(0, nRetrieve - ftsResults.length),
+      ...recentlyEditedFilesChunks,
+      ...ftsChunks,
+      ...embeddingsChunks,
     );
 
-    const results: Chunk[] = deduplicateChunks(retrievalResults);
-    return results;
+    const deduplicatedRetrievalResults: Chunk[] =
+      deduplicateChunks(retrievalResults);
+
+    return deduplicatedRetrievalResults;
   }
 
   private async _rerank(input: string, chunks: Chunk[]): Promise<Chunk[]> {

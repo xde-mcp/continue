@@ -91,7 +91,6 @@ async function addHighlightedCodeToContext(
     if (selection.isEmpty) {
       return;
     }
-
     // adjust starting position to include indentation
     const start = new vscode.Position(selection.start.line, 0);
     const range = new vscode.Range(start, selection.end);
@@ -321,8 +320,6 @@ const commandsMap: (
         // Handle closing the GUI only if we are focused on the input
         if (fullScreenTab) {
           fullScreenPanel?.dispose();
-        } else {
-          vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
         }
       } else {
         // Handle opening the GUI otherwise
@@ -480,11 +477,6 @@ const commandsMap: (
 
       //Full screen not open - open it
       captureCommandTelemetry("openFullScreen");
-
-      // Close the sidebar.webviews
-      // vscode.commands.executeCommand("workbench.action.closeSidebar");
-      vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
-      // vscode.commands.executeCommand("workbench.action.toggleZenMode");
 
       //create the full screen panel
       let panel = vscode.window.createWebviewPanel(

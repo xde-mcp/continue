@@ -23,6 +23,8 @@ export class SqliteDb {
   static db: DatabaseConnection | null = null;
 
   private static async createTables(db: DatabaseConnection) {
+    await db.exec("PRAGMA journal_mode=WAL;");
+
     await db.exec(
       `CREATE TABLE IF NOT EXISTS tag_catalog (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,7 +123,7 @@ enum AddRemoveResultType {
   UpdateNewVersion = "updateNewVersion",
   UpdateOldVersion = "updateOldVersion",
   UpdateLastUpdated = "updateLastUpdated",
-  Compute = "compute"
+  Compute = "compute",
 }
 
 async function getAddRemoveForTag(
@@ -451,7 +453,7 @@ export class GlobalCacheCodeBaseIndex implements CodebaseIndex {
     tag: IndexTag,
   ): Promise<void> {
     await this.db.run(
-      "INSERT INTO global_cache (cacheKey, dir, branch, artifactId) VALUES (?, ?, ?, ?)",
+      "REPLACE INTO global_cache (cacheKey, dir, branch, artifactId) VALUES (?, ?, ?, ?)",
       cacheKey,
       tag.directory,
       tag.branch,

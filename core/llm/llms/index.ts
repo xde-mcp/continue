@@ -1,195 +1,667 @@
+import { findLlmInfo } from "@continuedev/llm-info";
 import Handlebars from "handlebars";
-import { v4 as uuidv4 } from "uuid";
 import {
-  BaseCompletionOptions,
-  IdeSettings,
+  ChatMessage,
+  ChatMessageRole,
+  CompletionOptions,
   ILLM,
+  LLMFullCompletionOptions,
   LLMOptions,
-  ModelDescription,
-} from "../../index.js";
-import { DEFAULT_MAX_TOKENS } from "../constants.js";
-import { BaseLLM } from "../index.js";
-import Anthropic from "./Anthropic.js";
-import Bedrock from "./Bedrock.js";
-import Cloudflare from "./Cloudflare.js";
-import Cohere from "./Cohere.js";
-import DeepInfra from "./DeepInfra.js";
-import Deepseek from "./Deepseek.js";
-import Fireworks from "./Fireworks.js";
-import Flowise from "./Flowise.js";
-import FreeTrial from "./FreeTrial.js";
-import Gemini from "./Gemini.js";
-import Groq from "./Groq.js";
-import HuggingFaceInferenceAPI from "./HuggingFaceInferenceAPI.js";
-import HuggingFaceTGI from "./HuggingFaceTGI.js";
-import LMStudio from "./LMStudio.js";
-import LlamaCpp from "./LlamaCpp.js";
-import Llamafile from "./Llamafile.js";
-import Mistral from "./Mistral.js";
-import Msty from "./Msty.js";
-import Azure from "./Azure.js";
-import Ollama from "./Ollama.js";
-import OpenAI from "./OpenAI.js";
-import Replicate from "./Replicate.js";
-import TextGenWebUI from "./TextGenWebUI.js";
-import Together from "./Together.js";
-import ContinueProxy from "./stubs/ContinueProxy.js";
+  ModelCapability,
+  ModelName,
+  ModelProvider,
+  PromptLog,
+  PromptTemplate,
+  RequestOptions,
+  TemplateType,
+} from "../index.js";
+import { logDevData } from "../util/devdata.js";
+import { DevDataSqliteDb } from "../util/devdataSqlite.js";
+import { fetchwithRequestOptions } from "../util/fetchWithOptions.js";
+import mergeJson from "../util/merge.js";
+import { Telemetry } from "../util/posthog.js";
+import { withExponentialBackoff } from "../util/withExponentialBackoff.js";
+import {
+  autodetectPromptTemplates,
+  autodetectTemplateFunction,
+  autodetectTemplateType,
+  modelSupportsImages,
+} from "./autodetect.js";
+import {
+  CONTEXT_LENGTH_FOR_MODEL,
+  DEFAULT_ARGS,
+  DEFAULT_CONTEXT_LENGTH,
+  DEFAULT_MAX_TOKENS,
+} from "./constants.js";
+import {
+  compileChatMessages,
+  countTokens,
+  pruneRawPromptFromTop,
+} from "./countTokens.js";
+import { stripImages } from "./images.js";
+import CompletionOptionsForModels from "./templates/options.js";
 
-function convertToLetter(num: number): string {
-  let result = "";
-  while (num > 0) {
-    const remainder = (num - 1) % 26;
-    result = String.fromCharCode(97 + remainder) + result;
-    num = Math.floor((num - 1) / 26);
+export abstract class BaseLLM implements ILLM {
+  static providerName: ModelProvider;
+  static defaultOptions: Partial<LLMOptions> | undefined = undefined;
+
+  get providerName(): ModelProvider {
+    return (this.constructor as typeof BaseLLM).providerName;
   }
-  return result;
-}
 
-const getHandlebarsVars = (
-  value: string,
-): [string, { [key: string]: string }] => {
-  const ast = Handlebars.parse(value);
+  supportsFim(): boolean {
+    return false;
+  }
 
-  const keysToFilepath: { [key: string]: string } = {};
-  let keyIndex = 1;
-  for (const i in ast.body) {
-    if (ast.body[i].type === "MustacheStatement") {
-      const letter = convertToLetter(keyIndex);
-      keysToFilepath[letter] = (ast.body[i] as any).path.original;
-      value = value.replace(
-        new RegExp(`{{\\s*${(ast.body[i] as any).path.original}\\s*}}`),
-        `{{${letter}}}`,
+  supportsImages(): boolean {
+    return modelSupportsImages(
+      this.providerName,
+      this.model,
+      this.title,
+      this.capabilities,
+    );
+  }
+
+  supportsCompletions(): boolean {
+    if (this.providerName === "openai") {
+      if (
+        this.apiBase?.includes("api.groq.com") ||
+        this.apiBase?.includes("api.mistral.ai") ||
+        this.apiBase?.includes(":1337") ||
+        this._llmOptions.useLegacyCompletionsEndpoint?.valueOf() === false
+      ) {
+        // Jan + Groq + Mistral don't support completions : (
+        // Seems to be going out of style...
+        return false;
+      }
+    }
+    if (["groq", "mistral"].includes(this.providerName)) {
+      return false;
+    }
+    return true;
+  }
+
+  supportsPrefill(): boolean {
+    return ["ollama", "anthropic", "mistral"].includes(this.providerName);
+  }
+
+  uniqueId: string;
+  model: string;
+
+  title?: string;
+  systemMessage?: string;
+  contextLength: number;
+  completionOptions: CompletionOptions;
+  requestOptions?: RequestOptions;
+  template?: TemplateType;
+  promptTemplates?: Record<string, PromptTemplate>;
+  templateMessages?: (messages: ChatMessage[]) => string;
+  writeLog?: (str: string) => Promise<void>;
+  llmRequestHook?: (model: string, prompt: string) => any;
+  apiKey?: string;
+  apiBase?: string;
+  capabilities?: ModelCapability;
+
+  engine?: string;
+  apiVersion?: string;
+  apiType?: string;
+  region?: string;
+  projectId?: string;
+  accountId?: string;
+  aiGatewaySlug?: string;
+
+  // For WatsonX only.
+
+  watsonxUrl?: string;
+  watsonxApiKey?: string;
+  watsonxZenApiKeyBase64?: string = "YOUR_WATSONX_ZENAPIKEY"; // Required if using watsonx software with ZenApiKey auth
+  watsonxUsername?: string;
+  watsonxPassword?: string;
+  watsonxProjectId?: string;
+
+  private _llmOptions: LLMOptions;
+
+  constructor(_options: LLMOptions) {
+    this._llmOptions = _options;
+
+    // Set default options
+    const options = {
+      title: (this.constructor as typeof BaseLLM).providerName,
+      ...(this.constructor as typeof BaseLLM).defaultOptions,
+      ..._options,
+    };
+
+    this.model = options.model;
+    const llmInfo = findLlmInfo(this.model);
+
+    const templateType =
+      options.template ?? autodetectTemplateType(options.model);
+
+    this.title = options.title;
+    this.uniqueId = options.uniqueId ?? "None";
+    this.systemMessage = options.systemMessage;
+    this.contextLength =
+      options.contextLength ?? llmInfo?.contextLength ?? DEFAULT_CONTEXT_LENGTH;
+    this.completionOptions = {
+      ...options.completionOptions,
+      model: options.model || "gpt-4",
+      maxTokens: options.completionOptions?.maxTokens ?? DEFAULT_MAX_TOKENS,
+    };
+    if (CompletionOptionsForModels[options.model as ModelName]) {
+      this.completionOptions = mergeJson(
+        this.completionOptions,
+        CompletionOptionsForModels[options.model as ModelName] ?? {},
       );
-      keyIndex++;
+    }
+    this.requestOptions = options.requestOptions;
+    this.promptTemplates = {
+      ...autodetectPromptTemplates(options.model, templateType),
+      ...options.promptTemplates,
+    };
+    this.templateMessages =
+      options.templateMessages ??
+      autodetectTemplateFunction(
+        options.model,
+        this.providerName,
+        options.template,
+      );
+    this.writeLog = options.writeLog;
+    this.llmRequestHook = options.llmRequestHook;
+    this.apiKey = options.apiKey;
+    this.aiGatewaySlug = options.aiGatewaySlug;
+    this.apiBase = options.apiBase;
+    // for watsonx only
+    this.watsonxUrl = options.watsonxUrl;
+    this.watsonxApiKey = options.watsonxApiKey;
+    this.watsonxProjectId = options.watsonxProjectId;
+    this.watsonxUsername = options.watsonxUsername;
+    this.watsonxPassword = options.watsonxPassword;
+
+    if (this.apiBase && !this.apiBase.endsWith("/")) {
+      this.apiBase = `${this.apiBase}/`;
+    }
+    this.accountId = options.accountId;
+    this.capabilities = options.capabilities;
+
+    this.engine = options.engine;
+    this.apiVersion = options.apiVersion;
+    this.apiType = options.apiType;
+    this.region = options.region;
+    this.projectId = options.projectId;
+  }
+
+  listModels(): Promise<string[]> {
+    return Promise.resolve([]);
+  }
+
+  private _compileChatMessages(
+    options: CompletionOptions,
+    messages: ChatMessage[],
+    functions?: any[],
+  ) {
+    let contextLength = this.contextLength;
+    if (
+      options.model !== this.model &&
+      options.model in CONTEXT_LENGTH_FOR_MODEL
+    ) {
+      contextLength =
+        CONTEXT_LENGTH_FOR_MODEL[options.model] || DEFAULT_CONTEXT_LENGTH;
+    }
+
+    return compileChatMessages(
+      options.model,
+      messages,
+      contextLength,
+      options.maxTokens ?? DEFAULT_MAX_TOKENS,
+      this.supportsImages(),
+      undefined,
+      functions,
+      this.systemMessage,
+    );
+  }
+
+  private _getSystemMessage(): string | undefined {
+    // TODO: Merge with config system message
+    return this.systemMessage;
+  }
+
+  private _templatePromptLikeMessages(prompt: string): string {
+    if (!this.templateMessages) {
+      return prompt;
+    }
+
+    const msgs: ChatMessage[] = [{ role: "user", content: prompt }];
+
+    const systemMessage = this._getSystemMessage();
+    if (systemMessage) {
+      msgs.unshift({ role: "system", content: systemMessage });
+    }
+
+    return this.templateMessages(msgs);
+  }
+
+  private _compileLogMessage(
+    prompt: string,
+    completionOptions: CompletionOptions,
+  ): string {
+    const dict = { contextLength: this.contextLength, ...completionOptions };
+    const settings = Object.entries(dict)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join("\n");
+    return `Settings:
+${settings}
+
+############################################
+
+${prompt}`;
+  }
+
+  private _logTokensGenerated(
+    model: string,
+    prompt: string,
+    completion: string,
+  ) {
+    let promptTokens = this.countTokens(prompt);
+    let generatedTokens = this.countTokens(completion);
+    Telemetry.capture(
+      "tokens_generated",
+      {
+        model: model,
+        provider: this.providerName,
+        promptTokens: promptTokens,
+        generatedTokens: generatedTokens,
+      },
+      true,
+    );
+    DevDataSqliteDb.logTokensGenerated(
+      model,
+      this.providerName,
+      promptTokens,
+      generatedTokens,
+    );
+    logDevData("tokens_generated", {
+      model: model,
+      provider: this.providerName,
+      promptTokens: promptTokens,
+      generatedTokens: generatedTokens,
+    });
+  }
+
+  fetch(url: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    // Custom Node.js fetch
+    const customFetch = async (input: URL | RequestInfo, init: any) => {
+      try {
+        const resp = await fetchwithRequestOptions(
+          new URL(input as any),
+          { ...init },
+          { ...this.requestOptions },
+        );
+
+        // Error mapping to be more helpful
+        if (!resp.ok) {
+          let text = await resp.text();
+          if (resp.status === 404 && !resp.url.includes("/v1")) {
+            if (text.includes("try pulling it first")) {
+              const model = JSON.parse(text).error.split(" ")[1].slice(1, -1);
+              text = `The model "${model}" was not found. To download it, run \`ollama run ${model}\`.`;
+            } else if (text.includes("/api/chat")) {
+              text =
+                "The /api/chat endpoint was not found. This may mean that you are using an older version of Ollama that does not support /api/chat. Upgrading to the latest version will solve the issue.";
+            } else {
+              text =
+                "This may mean that you forgot to add '/v1' to the end of your 'apiBase' in config.json.";
+            }
+          } else if (
+            resp.status === 404 &&
+            resp.url.includes("api.openai.com")
+          ) {
+            text =
+              "You may need to add pre-paid credits before using the OpenAI API.";
+          }
+          throw new Error(
+            `HTTP ${resp.status} ${resp.statusText} from ${resp.url}\n\n${text}`,
+          );
+        }
+
+        return resp;
+      } catch (e: any) {
+        // Errors to ignore
+        if (!e.message.includes("/api/show")) {
+          console.warn(
+            `${e.message}\n\nCode: ${e.code}\nError number: ${e.errno}\nSyscall: ${e.erroredSysCall}\nType: ${e.type}\n\n${e.stack}`,
+          );
+
+          if (
+            e.code === "ECONNREFUSED" &&
+            e.message.includes("http://127.0.0.1:11434")
+          ) {
+            throw new Error(
+              "Failed to connect to local Ollama instance. To start Ollama, first download it at https://ollama.ai.",
+            );
+          }
+        }
+        throw new Error(e.message);
+      }
+    };
+    return withExponentialBackoff<Response>(
+      () => customFetch(url, init) as any,
+      5,
+      0.5,
+    );
+  }
+
+  private _parseCompletionOptions(options: LLMFullCompletionOptions) {
+    const log = options.log ?? true;
+    const raw = options.raw ?? false;
+    options.log = undefined;
+
+    const completionOptions: CompletionOptions = mergeJson(
+      this.completionOptions,
+      options,
+    );
+
+    return { completionOptions, log, raw };
+  }
+
+  private _formatChatMessages(messages: ChatMessage[]): string {
+    const msgsCopy = messages ? messages.map((msg) => ({ ...msg })) : [];
+    let formatted = "";
+    for (const msg of msgsCopy) {
+      if ("content" in msg && Array.isArray(msg.content)) {
+        const content = stripImages(msg.content);
+        msg.content = content;
+      }
+      formatted += `<${msg.role}>\n${msg.content || ""}\n\n`;
+    }
+    return formatted;
+  }
+
+  async *_streamFim(
+    prefix: string,
+    suffix: string,
+    options: CompletionOptions,
+  ): AsyncGenerator<string, PromptLog> {
+    throw new Error("Not implemented");
+  }
+
+  async *streamFim(
+    prefix: string,
+    suffix: string,
+    options: LLMFullCompletionOptions = {},
+  ): AsyncGenerator<string> {
+    const { completionOptions, log } = this._parseCompletionOptions(options);
+
+    const madeUpFimPrompt = `${prefix}<FIM>${suffix}`;
+    if (log) {
+      if (this.writeLog) {
+        await this.writeLog(
+          this._compileLogMessage(madeUpFimPrompt, completionOptions),
+        );
+      }
+      if (this.llmRequestHook) {
+        this.llmRequestHook(completionOptions.model, madeUpFimPrompt);
+      }
+    }
+
+    let completion = "";
+    for await (const chunk of this._streamFim(
+      prefix,
+      suffix,
+      completionOptions,
+    )) {
+      completion += chunk;
+      yield chunk;
+    }
+
+    this._logTokensGenerated(
+      completionOptions.model,
+      madeUpFimPrompt,
+      completion,
+    );
+
+    if (log && this.writeLog) {
+      await this.writeLog(`Completion:\n\n${completion}\n\n`);
+    }
+
+    return {
+      prompt: madeUpFimPrompt,
+      completion,
+      completionOptions,
+    };
+  }
+
+  async *streamComplete(
+    _prompt: string,
+    options: LLMFullCompletionOptions = {},
+  ) {
+    const { completionOptions, log, raw } =
+      this._parseCompletionOptions(options);
+
+    let prompt = pruneRawPromptFromTop(
+      completionOptions.model,
+      this.contextLength,
+      _prompt,
+      completionOptions.maxTokens ?? DEFAULT_MAX_TOKENS,
+    );
+
+    if (!raw) {
+      prompt = this._templatePromptLikeMessages(prompt);
+    }
+
+    if (log) {
+      if (this.writeLog) {
+        await this.writeLog(this._compileLogMessage(prompt, completionOptions));
+      }
+      if (this.llmRequestHook) {
+        this.llmRequestHook(completionOptions.model, prompt);
+      }
+    }
+
+    let completion = "";
+    for await (const chunk of this._streamComplete(prompt, completionOptions)) {
+      completion += chunk;
+      yield chunk;
+    }
+
+    this._logTokensGenerated(completionOptions.model, prompt, completion);
+
+    if (log && this.writeLog) {
+      await this.writeLog(`Completion:\n\n${completion}\n\n`);
+    }
+
+    return {
+      modelTitle: this.title ?? completionOptions.model,
+      prompt,
+      completion,
+      completionOptions,
+    };
+  }
+
+  async complete(_prompt: string, options: LLMFullCompletionOptions = {}) {
+    const { completionOptions, log, raw } =
+      this._parseCompletionOptions(options);
+
+    let prompt = pruneRawPromptFromTop(
+      completionOptions.model,
+      this.contextLength,
+      _prompt,
+      completionOptions.maxTokens ?? DEFAULT_MAX_TOKENS,
+    );
+
+    if (!raw) {
+      prompt = this._templatePromptLikeMessages(prompt);
+    }
+
+    if (log) {
+      if (this.writeLog) {
+        await this.writeLog(this._compileLogMessage(prompt, completionOptions));
+      }
+      if (this.llmRequestHook) {
+        this.llmRequestHook(completionOptions.model, prompt);
+      }
+    }
+
+    const completion = await this._complete(prompt, completionOptions);
+
+    this._logTokensGenerated(completionOptions.model, prompt, completion);
+    if (log && this.writeLog) {
+      await this.writeLog(`Completion:\n\n${completion}\n\n`);
+    }
+
+    return completion;
+  }
+
+  async chat(messages: ChatMessage[], options: LLMFullCompletionOptions = {}) {
+    let completion = "";
+    for await (const chunk of this.streamChat(messages, options)) {
+      completion += chunk.content;
+    }
+    return { role: "assistant" as ChatMessageRole, content: completion };
+  }
+
+  async *streamChat(
+    _messages: ChatMessage[],
+    options: LLMFullCompletionOptions = {},
+  ): AsyncGenerator<ChatMessage, PromptLog> {
+    const { completionOptions, log, raw } =
+      this._parseCompletionOptions(options);
+
+    const messages = this._compileChatMessages(completionOptions, _messages);
+
+    const prompt = this.templateMessages
+      ? this.templateMessages(messages)
+      : this._formatChatMessages(messages);
+    if (log) {
+      if (this.writeLog) {
+        await this.writeLog(this._compileLogMessage(prompt, completionOptions));
+      }
+      if (this.llmRequestHook) {
+        this.llmRequestHook(completionOptions.model, prompt);
+      }
+    }
+
+    let completion = "";
+
+    try {
+      if (this.templateMessages) {
+        for await (const chunk of this._streamComplete(
+          prompt,
+          completionOptions,
+        )) {
+          completion += chunk;
+          yield { role: "assistant", content: chunk };
+        }
+      } else {
+        for await (const chunk of this._streamChat(
+          messages,
+          completionOptions,
+        )) {
+          completion += chunk.content;
+          yield chunk;
+        }
+      }
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+
+    this._logTokensGenerated(completionOptions.model, prompt, completion);
+    if (log && this.writeLog) {
+      await this.writeLog(`Completion:\n\n${completion}\n\n`);
+    }
+
+    return {
+      modelTitle: this.title ?? completionOptions.model,
+      prompt,
+      completion,
+      completionOptions,
+    };
+  }
+
+  // biome-ignore lint/correctness/useYield: Purposefully not implemented
+  protected async *_streamComplete(
+    prompt: string,
+    options: CompletionOptions,
+  ): AsyncGenerator<string> {
+    throw new Error("Not implemented");
+  }
+
+  protected async *_streamChat(
+    messages: ChatMessage[],
+    options: CompletionOptions,
+  ): AsyncGenerator<ChatMessage> {
+    if (!this.templateMessages) {
+      throw new Error(
+        "You must either implement templateMessages or _streamChat",
+      );
+    }
+
+    for await (const chunk of this._streamComplete(
+      this.templateMessages(messages),
+      options,
+    )) {
+      yield { role: "assistant", content: chunk };
     }
   }
-  return [value, keysToFilepath];
-};
 
-export async function renderTemplatedString(
-  template: string,
-  readFile: (filepath: string) => Promise<string>,
-  inputData: any,
-  helpers?: [string, Handlebars.HelperDelegate][],
-): Promise<string> {
-  const promises: { [key: string]: Promise<string> } = {};
-  if (helpers) {
-    for (const [name, helper] of helpers) {
-      Handlebars.registerHelper(name, (...args) => {
-        const id = uuidv4();
-        promises[id] = helper(...args);
-        return `__${id}__`;
-      });
+  protected async _complete(prompt: string, options: CompletionOptions) {
+    let completion = "";
+    for await (const chunk of this._streamComplete(prompt, options)) {
+      completion += chunk;
     }
+    return completion;
   }
 
-  const [newTemplate, vars] = getHandlebarsVars(template);
-  const data: any = { ...inputData };
-  for (const key in vars) {
-    const fileContents = await readFile(vars[key]);
-    data[key] = fileContents || (inputData[vars[key]] ?? vars[key]);
-  }
-  const templateFn = Handlebars.compile(newTemplate);
-  let final = templateFn(data);
-
-  await Promise.all(Object.values(promises));
-  for (const id in promises) {
-    final = final.replace(`__${id}__`, await promises[id]);
+  countTokens(text: string): number {
+    return countTokens(text, this.model);
   }
 
-  return final;
-}
-
-const LLMs = [
-  Anthropic,
-  Cohere,
-  FreeTrial,
-  Gemini,
-  Llamafile,
-  Ollama,
-  Replicate,
-  TextGenWebUI,
-  Together,
-  HuggingFaceTGI,
-  HuggingFaceInferenceAPI,
-  LlamaCpp,
-  OpenAI,
-  LMStudio,
-  Mistral,
-  Bedrock,
-  DeepInfra,
-  Flowise,
-  Groq,
-  Fireworks,
-  ContinueProxy,
-  Cloudflare,
-  Deepseek,
-  Msty,
-  Azure,
-];
-
-export async function llmFromDescription(
-  desc: ModelDescription,
-  readFile: (filepath: string) => Promise<string>,
-  uniqueId: string,
-  ideSettings: IdeSettings,
-  writeLog: (log: string) => Promise<void>,
-  completionOptions?: BaseCompletionOptions,
-  systemMessage?: string,
-): Promise<BaseLLM | undefined> {
-  const cls = LLMs.find((llm) => llm.providerName === desc.provider);
-
-  if (!cls) {
-    return undefined;
+  protected collectArgs(options: CompletionOptions): any {
+    return {
+      ...DEFAULT_ARGS,
+      // model: this.model,
+      ...options,
+    };
   }
 
-  const finalCompletionOptions = {
-    ...completionOptions,
-    ...desc.completionOptions,
-  };
+  public renderPromptTemplate(
+    template: PromptTemplate,
+    history: ChatMessage[],
+    otherData: Record<string, string>,
+    canPutWordsInModelsMouth = false,
+  ): string | ChatMessage[] {
+    if (typeof template === "string") {
+      const data: any = {
+        history: history,
+        ...otherData,
+      };
+      if (history.length > 0 && history[0].role === "system") {
+        data.system_message = history.shift()!.content;
+      }
 
-  systemMessage = desc.systemMessage ?? systemMessage;
-  if (systemMessage !== undefined) {
-    systemMessage = await renderTemplatedString(systemMessage, readFile, {});
-  }
-
-  let options: LLMOptions = {
-    ...desc,
-    completionOptions: {
-      ...finalCompletionOptions,
-      model: (desc.model || cls.defaultOptions?.model) ?? "codellama-7b",
-      maxTokens:
-        finalCompletionOptions.maxTokens ??
-        cls.defaultOptions?.completionOptions?.maxTokens ??
-        DEFAULT_MAX_TOKENS,
-    },
-    systemMessage,
-    writeLog,
-    uniqueId,
-  };
-
-  if (desc.provider === "continue-proxy") {
-    options.apiKey = ideSettings.userToken;
-    if (ideSettings.remoteConfigServerUrl) {
-      options.apiBase = new URL(
-        "/proxy/v1",
-        ideSettings.remoteConfigServerUrl,
-      ).toString();
+      const compiledTemplate = Handlebars.compile(template);
+      return compiledTemplate(data);
     }
+    const rendered = template(history, {
+      ...otherData,
+      supportsCompletions: this.supportsCompletions() ? "true" : "false",
+      supportsPrefill: this.supportsPrefill() ? "true" : "false",
+    });
+    if (
+      typeof rendered !== "string" &&
+      rendered[rendered.length - 1]?.role === "assistant" &&
+      !canPutWordsInModelsMouth
+    ) {
+      // Some providers don't allow you to put words in the model's mouth
+      // So we have to manually compile the prompt template and use
+      // raw /completions, not /chat/completions
+      const templateMessages = autodetectTemplateFunction(
+        this.model,
+        this.providerName,
+        autodetectTemplateType(this.model),
+      );
+      return templateMessages(rendered);
+    }
+    return rendered;
   }
-
-  return new cls(options);
-}
-
-export function llmFromProviderAndOptions(
-  providerName: string,
-  llmOptions: LLMOptions,
-): ILLM {
-  const cls = LLMs.find((llm) => llm.providerName === providerName);
-
-  if (!cls) {
-    throw new Error(`Unknown LLM provider type "${providerName}"`);
-  }
-
-  return new cls(llmOptions);
 }
