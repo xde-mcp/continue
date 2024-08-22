@@ -154,7 +154,10 @@ async function getAddRemoveForTag(
       // Exists in old and new, so determine whether it was updated
       if (lastUpdated < files[item.path]) {
         // Change was made after last update
-        const newHash = calculateHash(await readFile(pathAndCacheKey.path));
+        const newHash = calculateHash(
+          await readFile(pathAndCacheKey.path),
+          pathAndCacheKey.path,
+        );
         if (pathAndCacheKey.cacheKey !== newHash) {
           updateNewVersion.push({
             path: pathAndCacheKey.path,
@@ -180,7 +183,7 @@ async function getAddRemoveForTag(
   const limit = plimit(10);
   const promises = Object.keys(files).map(async (path) => {
     const fileContents = await limit(() => readFile(path));
-    return { path, cacheKey: calculateHash(fileContents) };
+    return { path, cacheKey: calculateHash(fileContents, path) };
   });
   const add: PathAndCacheKey[] = await Promise.all(promises);
 
@@ -314,8 +317,9 @@ async function getTagsFromGlobalCache(
   return rows;
 }
 
-function calculateHash(fileContents: string): string {
+function calculateHash(fileContents: string, path: string): string {
   const hash = crypto.createHash("sha256");
+  hash.update(path);
   hash.update(fileContents);
   return hash.digest("hex");
 }
