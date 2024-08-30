@@ -371,8 +371,8 @@ const exe = os === "win32" ? ".exe" : "";
 
       // lancedb binary
       const packageToInstall = {
-        "darwin-arm64": "@lancedb/vectordb-darwin-arm64",
-        "linux-arm64": "@lancedb/vectordb-linux-arm64-gnu",
+        "darwin-arm64": "@lancedb/lancedb-darwin-arm64",
+        "linux-arm64": "@lancedb/lancedb-linux-arm64-gnu",
       }[target];
       console.log(
         "[info] Downloading pre-built lancedb binary: " + packageToInstall,
@@ -457,7 +457,7 @@ const exe = os === "win32" ? ".exe" : "";
   const NODE_MODULES_TO_COPY = [
     "esbuild",
     "@esbuild",
-    "@lancedb",
+    "@lancedb/lancedb",
     "@vscode/ripgrep",
     "workerpool",
   ];
@@ -489,6 +489,17 @@ const exe = os === "win32" ? ".exe" : "";
 
   console.log(`[info] Copied ${NODE_MODULES_TO_COPY.join(", ")}`);
 
+  // @lancedb/lancedb-[platform] needs to be in the root of the out directory
+  const lancedbTargetName =
+    os === "win32"
+      ? "win32-x64-msvc"
+      : `${target}${os === "linux" ? "-gnu" : ""}`;
+
+  fs.cpSync(
+    `node_modules/@lancedb/lancedb-${lancedbTargetName}/lancedb.${lancedbTargetName}.node`,
+    `out/lancedb.${lancedbTargetName}.node`,
+  );
+
   // Copy over any worker files
   fs.cpSync(
     "node_modules/jsdom/lib/jsdom/living/xhr/xhr-sync-worker.js",
@@ -509,8 +520,8 @@ const exe = os === "win32" ? ".exe" : "";
       os === "darwin"
         ? "libonnxruntime.1.14.0.dylib"
         : os === "linux"
-        ? "libonnxruntime.so.1.14.0"
-        : "onnxruntime.dll"
+          ? "libonnxruntime.so.1.14.0"
+          : "onnxruntime.dll"
     }`,
     "builtin-themes/dark_modern.json",
 
@@ -549,14 +560,10 @@ const exe = os === "win32" ? ".exe" : "";
       target === "win32-arm64"
         ? "esbuild.exe"
         : target === "win32-x64"
-        ? "win32-x64/esbuild.exe"
-        : `${target}/bin/esbuild`
+          ? "win32-x64/esbuild.exe"
+          : `${target}/bin/esbuild`
     }`,
-    `out/node_modules/@lancedb/vectordb-${
-      os === "win32"
-        ? "win32-x64-msvc"
-        : `${target}${os === "linux" ? "-gnu" : ""}`
-    }/index.node`,
+    `out/lancedb.${lancedbTargetName}.node`,
     `out/node_modules/esbuild/lib/main.js`,
     `out/node_modules/esbuild/bin/esbuild`,
   ]);

@@ -1,8 +1,6 @@
+import lancedb, { Connection } from "@lancedb/lancedb";
 import { open, type Database } from "sqlite";
 import sqlite3 from "sqlite3";
-import lancedb, { Connection } from "vectordb";
-import { ConfigHandler } from "../../config/ConfigHandler";
-import DocsContextProvider from "../../context/providers/DocsContextProvider";
 import {
   Chunk,
   ContinueConfig,
@@ -11,6 +9,8 @@ import {
   IndexingProgressUpdate,
   SiteIndexingConfig,
 } from "../..";
+import { ConfigHandler } from "../../config/ConfigHandler";
+import DocsContextProvider from "../../context/providers/DocsContextProvider";
 import { FromCoreProtocol, ToCoreProtocol } from "../../protocol";
 import { GlobalContext } from "../../util/GlobalContext";
 import { IMessenger } from "../../util/messenger";
@@ -334,10 +334,10 @@ export default class DocsService {
     });
 
     const docs: LanceDbDocsRow[] = await table
-      .search(vector)
+      .vectorSearch(vector)
       .limit(nRetrieve)
       .where(`starturl = '${startUrl}'`)
-      .execute();
+      .toArray();
 
     const hasIndexedDoc = await this.hasIndexedDoc(startUrl);
 
@@ -522,9 +522,8 @@ export default class DocsService {
   private async getLanceTableNameFromEmbeddingsProvider(
     isPreIndexedDoc: boolean,
   ) {
-    const embeddingsProvider = await this.getEmbeddingsProvider(
-      isPreIndexedDoc,
-    );
+    const embeddingsProvider =
+      await this.getEmbeddingsProvider(isPreIndexedDoc);
     const embeddingsProviderId = this.removeInvalidLanceTableNameChars(
       embeddingsProvider.id,
     );

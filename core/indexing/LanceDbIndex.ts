@@ -1,7 +1,7 @@
 // NOTE: vectordb requirement must be listed in extensions/vscode to avoid error
+import lance, { Table } from "@lancedb/lancedb";
 import { RunResult } from "sqlite3";
 import { v4 as uuidv4 } from "uuid";
-import lance, { Table } from "vectordb";
 import { IContinueServerClient } from "../continueServer/interface.js";
 import {
   BranchAndDir,
@@ -211,7 +211,7 @@ export class LanceDbIndex implements CodebaseIndex {
     const lanceDb = await lance.connect(getLanceDbPath());
     const existingLanceTables = await lanceDb.tableNames();
 
-    let lanceTable: Table<number[]> | undefined = undefined;
+    let lanceTable: Table | undefined = undefined;
     let needToCreateLanceTable = !existingLanceTables.includes(lanceTableName);
 
     // Compute
