@@ -3,6 +3,7 @@ import { pruneLinesFromBottom, pruneLinesFromTop } from "core/llm/countTokens";
 import { getMarkdownLanguageTagForFile } from "core/util";
 import { streamDiffLines } from "core/util/verticalEdit";
 import * as vscode from "vscode";
+import EditDecorationManager from "../../quickEdit/EditDecorationManager";
 import { VerticalPerLineDiffHandler } from "./handler";
 
 export interface VerticalDiffCodeLens {
@@ -21,7 +22,10 @@ export class VerticalPerLineDiffManager {
 
   private userChangeListener: vscode.Disposable | undefined;
 
-  constructor(private readonly configHandler: ConfigHandler) {
+  constructor(
+    private readonly configHandler: ConfigHandler,
+    private readonly editDecorationManager: EditDecorationManager,
+  ) {
     this.userChangeListener = undefined;
   }
 
@@ -318,6 +322,8 @@ export class VerticalPerLineDiffManager {
       "continue.streamingDiff",
       true,
     );
+
+    this.editDecorationManager.clear();
 
     try {
       await diffHandler.run(

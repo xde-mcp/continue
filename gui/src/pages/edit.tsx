@@ -12,6 +12,7 @@ import FileIcon from "../components/FileIcon";
 import resolveEditorContent from "../components/mainInput/resolveInput";
 import TipTapEditor from "../components/mainInput/TipTapEditor";
 import { IdeMessengerContext } from "../context/IdeMessenger";
+import { setEditDone, setEditStatus } from "../redux/slices/editModeState";
 import { RootState } from "../redux/store";
 import { getMetaKeyLabel } from "../util";
 import { NewSessionButton } from "./chat";
@@ -28,15 +29,21 @@ const TopDiv = styled.div`
   }
 `;
 
-const AcceptRejectButton = styled.div<{ backgroundColor: string }>`
+const AcceptRejectButton = styled.button<{
+  backgroundColor: string;
+  disabled: boolean;
+}>`
+  border: none;
   background-color: ${(props) => props.backgroundColor};
   border-radius: ${defaultBorderRadius};
   padding: 8px 16px;
   color: ${vscForeground};
-  cursor: pointer;
   width: 100%;
   text-align: center;
   margin: 0 8px;
+
+  opacity: ${(props) => (props.disabled ? 0.5 : 1)};
+  cursor: ${(props) => (props.disabled ? "default" : "pointer")};
 `;
 
 function Edit() {
@@ -49,7 +56,16 @@ function Edit() {
 
   const editModeState = useSelector((state: RootState) => state.editModeState);
 
-  useEffect(() => {}, []);
+  useEffect(() => {
+    if (editModeState.editStatus === "done") {
+      ideMessenger.request("edit/escape", undefined);
+      navigate("/");
+    }
+  }, [editModeState.editStatus]);
+
+  if (!editModeState.highlightedCode) {
+    return null;
+  }
 
   return (
     <>
@@ -61,9 +77,17 @@ function Edit() {
                 hideAddContext: true,
                 hideImageUpload: true,
                 hideUseCodebase: true,
-                enterText: "Edit",
+                enterText: ["streaming", "accepting"].includes(
+                  editModeState.editStatus,
+                )
+                  ? "Retry"
+                  : "Edit",
               }}
-              placeholder="Enter instructions for edit"
+              placeholder={
+                ["streaming", "accepting"].includes(editModeState.editStatus)
+                  ? "Enter instructions for edit"
+                  : "Enter follow-up instructions"
+              }
               border={`1px solid #aa0`}
               availableContextProviders={[]}
               availableSlashCommands={[]}
@@ -85,14 +109,17 @@ function Edit() {
                   prompt,
                   range: editModeState.highlightedCode,
                 });
+                dispatch(setEditStatus("streaming"));
               }}
               header={
-                <>
+                <div
+                  className="p-1"
+                  style={{
+                    backgroundColor: "#fff2",
+                  }}
+                >
                   <div
-                    className="p-1 flex cursor-pointer"
-                    style={{
-                      backgroundColor: "#fff2",
-                    }}
+                    className="flex cursor-pointer"
                     onClick={() => {
                       ideMessenger.ide.showLines(
                         editModeState.highlightedCode.filepath,
@@ -102,6 +129,7 @@ function Edit() {
                       setShowCode(!showCode);
                     }}
                   >
+                    {/* Filename header */}
                     <FileIcon
                       filename={editModeState.highlightedCode.filepath}
                       height={"18px"}
@@ -111,7 +139,7 @@ function Edit() {
                     {editModeState.highlightedCode.range.start.line}-
                     {editModeState.highlightedCode.range.end.line})
                   </div>
-                </>
+                </div>
               }
             ></TipTapEditor>
           </div>
@@ -120,7 +148,7 @@ function Edit() {
         <div className="mt-2">
           <NewSessionButton
             onClick={async () => {
-              navigate("/");
+              dispatch(setEditDone());
             }}
             className="mr-auto flex items-center gap-2"
           >
@@ -129,29 +157,33 @@ function Edit() {
           </NewSessionButton>
         </div>
 
-        {editModeState.editStatus === "accepting" && (
+        {["accepting", "streaming"].includes(editModeState.editStatus) && (
           <div className="flex w-full my-8">
             <AcceptRejectButton
+              disabled={editModeState.editStatus !== "accepting"}
               backgroundColor="#28a74588"
-              onClick={() =>
+              onClick={() => {
                 ideMessenger.request("edit/acceptReject", {
                   accept: true,
                   onlyFirst: false,
                   filepath: editModeState.highlightedCode.filepath,
-                })
-              }
+                });
+                dispatch(setEditDone());
+              }}
             >
               {getMetaKeyLabel()}⇧⏎ Accept all
             </AcceptRejectButton>
             <AcceptRejectButton
+              disabled={editModeState.editStatus !== "accepting"}
               backgroundColor="#dc354588"
-              onClick={() =>
+              onClick={() => {
                 ideMessenger.request("edit/acceptReject", {
                   accept: false,
                   onlyFirst: false,
                   filepath: editModeState.highlightedCode.filepath,
-                })
-              }
+                });
+                dispatch(setEditDone());
+              }}
             >
               {getMetaKeyLabel()}⇧⌫ Reject all
             </AcceptRejectButton>

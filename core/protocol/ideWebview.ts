@@ -35,6 +35,7 @@ export type ToIdeFromWebviewProtocol = ToIdeFromWebviewOrCoreProtocol & {
     { accept: boolean; onlyFirst: boolean; filepath: string },
     void,
   ];
+  "edit/escape": [undefined, void];
 };
 
 export interface EditModeArgs {

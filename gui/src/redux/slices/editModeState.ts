@@ -1,15 +1,17 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { MessageContent } from "core";
 import { RangeInFileWithContents } from "core/commands/util";
 import { EditModeArgs, EditStatus } from "core/protocol/ideWebview";
 
 interface EditModeState {
-  highlightedCode: RangeInFileWithContents | null;
+  highlightedCode?: RangeInFileWithContents;
   editStatus: EditStatus;
+  previousInputs: MessageContent[];
 }
 
 const initialState: EditModeState = {
-  highlightedCode: null,
   editStatus: "not-started",
+  previousInputs: [],
 };
 
 export const editModeStateSlice = createSlice({
@@ -19,12 +21,32 @@ export const editModeStateSlice = createSlice({
     startEditMode: (state, { payload }: PayloadAction<EditModeArgs>) => {
       state.highlightedCode = payload.highlightedCode;
       state.editStatus = "not-started";
+      state.previousInputs = [];
     },
     setEditStatus: (state, { payload }: PayloadAction<EditStatus>) => {
-      state.editStatus = payload;
+      // Only allow valid transitions
+      const currentStatus = state.editStatus;
+      if (currentStatus === "not-started" && payload === "streaming") {
+        state.editStatus = payload;
+      } else if (currentStatus === "streaming" && payload === "accepting") {
+        state.editStatus = payload;
+      } else if (currentStatus === "accepting" && payload === "done") {
+        state.editStatus = payload;
+      } else if (currentStatus === "done" && payload === "not-started") {
+        state.editStatus = payload;
+      }
+    },
+    addPreviousInput: (state, { payload }: PayloadAction<MessageContent>) => {
+      state.previousInputs.push(payload);
+    },
+    setEditDone: (state) => {
+      state.editStatus = "done";
+      state.highlightedCode = undefined;
+      state.previousInputs = [];
     },
   },
 });
 
-export const { startEditMode, setEditStatus } = editModeStateSlice.actions;
+export const { startEditMode, setEditStatus, addPreviousInput, setEditDone } =
+  editModeStateSlice.actions;
 export default editModeStateSlice.reducer;

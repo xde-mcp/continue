@@ -18,6 +18,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { VerticalPerLineDiffManager } from "../diff/verticalPerLine/manager";
+import EditDecorationManager from "../quickEdit/EditDecorationManager";
 import {
   getControlPlaneSessionInfo,
   WorkOsAuthProvider,
@@ -76,6 +77,7 @@ export class VsCodeMessenger {
     private readonly verticalDiffManagerPromise: Promise<VerticalPerLineDiffManager>,
     private readonly configHandlerPromise: Promise<ConfigHandler>,
     private readonly workOsAuthProvider: WorkOsAuthProvider,
+    private readonly editDecorationManager: EditDecorationManager,
   ) {
     /** WEBVIEW ONLY LISTENERS **/
     this.onWebview("showFile", (msg) => {
@@ -239,6 +241,9 @@ export class VsCodeMessenger {
         // Reject all
         vscode.commands.executeCommand("continue.rejectDiff", filepath);
       }
+    });
+    this.onWebview("edit/escape", async (msg) => {
+      this.editDecorationManager.clear();
     });
 
     /** PASS THROUGH FROM WEBVIEW TO CORE AND BACK **/

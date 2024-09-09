@@ -25,6 +25,7 @@ import {
 import { ContinueGUIWebviewViewProvider } from "./ContinueGUIWebviewViewProvider";
 import { DiffManager } from "./diff/horizontal";
 import { VerticalPerLineDiffManager } from "./diff/verticalPerLine/manager";
+import EditDecorationManager from "./quickEdit/EditDecorationManager";
 import { QuickEdit, QuickEditShowParams } from "./quickEdit/QuickEditQuickPick";
 import { Battery } from "./util/battery";
 import { uriFromFilePath } from "./util/vscode";
@@ -180,6 +181,7 @@ const commandsMap: (
   battery: Battery,
   quickEdit: QuickEdit,
   core: Core,
+  editDecorationManager: EditDecorationManager,
 ) => { [command: string]: (...args: any) => any } = (
   ide,
   extensionContext,
@@ -191,6 +193,7 @@ const commandsMap: (
   battery,
   quickEdit,
   core,
+  editDecorationManager,
 ) => {
   /**
    * Streams an inline edit to the vertical diff manager.
@@ -240,6 +243,9 @@ const commandsMap: (
       }
       verticalDiffManager.clearForFilepath(newFilepath, true);
       await diffManager.acceptDiff(newFilepath);
+      await sidebar.webviewProtocol.request("setEditStatus", {
+        status: "done",
+      });
     },
     "continue.rejectDiff": async (newFilepath?: string | vscode.Uri) => {
       captureCommandTelemetry("rejectDiff");
@@ -249,6 +255,9 @@ const commandsMap: (
       }
       verticalDiffManager.clearForFilepath(newFilepath, false);
       await diffManager.rejectDiff(newFilepath);
+      await sidebar.webviewProtocol.request("setEditStatus", {
+        status: "done",
+      });
     },
     "continue.acceptVerticalDiffBlock": (filepath?: string, index?: number) => {
       captureCommandTelemetry("acceptVerticalDiffBlock");
@@ -352,7 +361,7 @@ const commandsMap: (
       captureCommandTelemetry("quickEdit");
       quickEdit.show(args);
     },
-    "continue.edit": async (args: QuickEditShowParams) => {
+    "continue.edit": async () => {
       captureCommandTelemetry("quickEdit");
 
       const fullScreenTab = getFullScreenTab();
@@ -364,9 +373,22 @@ const commandsMap: (
         fullScreenPanel?.reveal();
       }
 
-      sidebar.webviewProtocol?.request("startEditMode", {
-        highlightedCode: getCurrentlyHighlightedCode(),
+      const editor = vscode.window.activeTextEditor;
+      if (editor) {
+        editDecorationManager.setDecoration(
+          editor,
+          new vscode.Range(editor.selection.start, editor.selection.end),
+        );
+      }
+
+      const highlightedCode = getCurrentlyHighlightedCode();
+      await sidebar.webviewProtocol?.request("startEditMode", {
+        highlightedCode,
       });
+
+      setTimeout(() => {
+        sidebar.webviewProtocol?.request("focusContinueInput", undefined);
+      }, 30);
     },
     "continue.writeCommentsForCode": async () => {
       captureCommandTelemetry("writeCommentsForCode");
@@ -723,6 +745,7 @@ export function registerAllCommands(
   battery: Battery,
   quickEdit: QuickEdit,
   core: Core,
+  editDecorationManager: EditDecorationManager,
 ) {
   for (const [command, callback] of Object.entries(
     commandsMap(
@@ -736,6 +759,7 @@ export function registerAllCommands(
       battery,
       quickEdit,
       core,
+      editDecorationManager,
     ),
   )) {
     context.subscriptions.push(

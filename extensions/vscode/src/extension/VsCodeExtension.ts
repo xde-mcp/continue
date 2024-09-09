@@ -18,8 +18,8 @@ import { ContinueGUIWebviewViewProvider } from "../ContinueGUIWebviewViewProvide
 import { registerDebugTracker } from "../debug/debug";
 import { DiffManager } from "../diff/horizontal";
 import { VerticalPerLineDiffManager } from "../diff/verticalPerLine/manager";
-import { VsCodeIde } from "../VsCodeIde";
 import { registerAllCodeLensProviders } from "../lang-server/codeLens";
+import EditDecorationManager from "../quickEdit/EditDecorationManager";
 import { QuickEdit } from "../quickEdit/QuickEditQuickPick";
 import { setupRemoteConfigSync } from "../stubs/activation";
 import {
@@ -28,6 +28,7 @@ import {
 } from "../stubs/WorkOsAuthProvider";
 import { Battery } from "../util/battery";
 import { TabAutocompleteModel } from "../util/loadAutocompleteModel";
+import { VsCodeIde } from "../VsCodeIde";
 import type { VsCodeWebviewProtocol } from "../webviewProtocol";
 import { VsCodeMessenger } from "./VsCodeMessenger";
 
@@ -39,6 +40,7 @@ export class VsCodeExtension {
   private ide: VsCodeIde;
   private tabAutocompleteModel: TabAutocompleteModel;
   private sidebar: ContinueGUIWebviewViewProvider;
+  private editDecorationManager: EditDecorationManager;
   private windowId: string;
   private diffManager: DiffManager;
   private verticalDiffManager: VerticalPerLineDiffManager;
@@ -52,6 +54,8 @@ export class VsCodeExtension {
     this.workOsAuthProvider = new WorkOsAuthProvider(context);
     this.workOsAuthProvider.initialize();
     context.subscriptions.push(this.workOsAuthProvider);
+
+    this.editDecorationManager = new EditDecorationManager(context);
 
     let resolveWebviewProtocol: any = undefined;
     this.webviewProtocolPromise = new Promise<VsCodeWebviewProtocol>(
@@ -109,6 +113,7 @@ export class VsCodeExtension {
       verticalDiffManagerPromise,
       configHandlerPromise,
       this.workOsAuthProvider,
+      this.editDecorationManager,
     );
 
     this.core = new Core(inProcessMessenger, this.ide, async (log: string) => {
@@ -126,6 +131,7 @@ export class VsCodeExtension {
     this.configHandler.reloadConfig();
     this.verticalDiffManager = new VerticalPerLineDiffManager(
       this.configHandler,
+      this.editDecorationManager,
     );
     resolveVerticalDiffManager?.(this.verticalDiffManager);
     this.tabAutocompleteModel = new TabAutocompleteModel(this.configHandler);
@@ -208,6 +214,7 @@ export class VsCodeExtension {
       this.battery,
       quickEdit,
       this.core,
+      this.editDecorationManager,
     );
 
     registerDebugTracker(this.sidebar.webviewProtocol, this.ide);
