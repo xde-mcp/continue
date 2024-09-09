@@ -23,7 +23,6 @@ interface MentionAttrs {
  * @param editor
  * @returns string representation of the input
  */
-
 async function resolveEditorContent(
   editorState: JSONContent,
   modifiers: InputModifiers,

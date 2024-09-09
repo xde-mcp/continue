@@ -1,5 +1,6 @@
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import configReducer from "./slices/configSlice";
+import editModeStateReducer from "./slices/editModeState";
 import miscReducer from "./slices/miscSlice";
 import serverStateReducer from "./slices/serverStateReducer";
 import stateReducer from "./slices/stateSlice";
@@ -21,6 +22,7 @@ const rootReducer = combineReducers({
   misc: miscReducer,
   uiState: uiStateReducer,
   serverState: serverStateReducer,
+  editModeState: editModeStateReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

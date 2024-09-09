@@ -7,8 +7,9 @@ import useSetup from "./hooks/useSetup";
 import useSubmenuContextProviders from "./hooks/useSubmenuContextProviders";
 import { useVscTheme } from "./hooks/useVscTheme";
 import { AddNewModel, ConfigureProvider } from "./pages/AddNewModel";
+import Chat from "./pages/chat";
+import Edit from "./pages/edit";
 import ErrorPage from "./pages/error";
-import GUI from "./pages/gui";
 import History from "./pages/history";
 import MigrationPage from "./pages/migration";
 import MonacoPage from "./pages/monaco";
@@ -28,11 +29,15 @@ const router = createMemoryRouter([
     children: [
       {
         path: "/index.html",
-        element: <GUI />,
+        element: <Chat />,
       },
       {
         path: "/",
-        element: <GUI />,
+        element: <Chat />,
+      },
+      {
+        path: "/edit",
+        element: <Edit />,
       },
       {
         path: "/history",

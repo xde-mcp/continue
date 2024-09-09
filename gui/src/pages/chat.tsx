@@ -113,7 +113,7 @@ const StepsDiv = styled.div`
   // }
 `;
 
-const NewSessionButton = styled.div`
+export const NewSessionButton = styled.div`
   width: fit-content;
   margin-right: auto;
   margin-left: 6px;
@@ -152,7 +152,7 @@ function fallbackRender({ error, resetErrorBoundary }: any) {
   );
 }
 
-function GUI() {
+function Chat() {
   const posthog = usePostHog();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -553,4 +553,4 @@ function GUI() {
   );
 }
 
-export default GUI;
+export default Chat;

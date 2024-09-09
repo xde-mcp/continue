@@ -159,6 +159,12 @@
         "group": "Continue"
       },
       {
+        "command": "continue.edit",
+        "category": "Continue",
+        "title": "Edit code with natural language",
+        "group": "Continue"
+      },
+      {
         "command": "continue.focusContinueInput",
         "category": "Continue",
         "title": "Add Highlighted Code to Context",
@@ -320,9 +326,14 @@
         "key": "alt+ctrl+n"
       },
       {
-        "command": "continue.quickEdit",
+        "command": "continue.edit",
         "mac": "cmd+i",
         "key": "ctrl+i"
+      },
+      {
+        "command": "continue.quickEdit",
+        "mac": "cmd+shift+i",
+        "key": "ctrl+shift+i"
       },
       {
         "command": "continue.debugTerminal",

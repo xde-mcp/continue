@@ -49,7 +49,7 @@ import {
 } from "../../util";
 import CodeBlockExtension from "./CodeBlockExtension";
 import { SlashCommand } from "./CommandsExtension";
-import InputToolbar from "./InputToolbar";
+import InputToolbar, { ToolbarOptions } from "./InputToolbar";
 import { Mention } from "./MentionExtension";
 import "./TipTapEditor.css";
 import {
@@ -58,7 +58,7 @@ import {
 } from "./getSuggestion";
 import { ComboBoxItem } from "./types";
 
-const InputBoxDiv = styled.div`
+const InputBoxDiv = styled.div<{ border?: string }>`
   resize: none;
 
   padding: 8px 12px;
@@ -71,7 +71,8 @@ const InputBoxDiv = styled.div`
   background-color: ${vscInputBackground};
   color: ${vscForeground};
   z-index: 1;
-  border: 0.5px solid ${vscInputBorder};
+  border: ${(props) =>
+    props.border ? props.border : `0.5px solid ${vscInputBorder}`};
   outline: none;
   font-size: ${getFontSize()}px;
   &:focus {
@@ -141,6 +142,9 @@ interface TipTapEditorProps {
   isMainInput: boolean;
   onEnter: (editorState: JSONContent, modifiers: InputModifiers) => void;
   editorState?: JSONContent;
+  toolbarOptions?: ToolbarOptions;
+  border?: string;
+  placeholder?: string;
 }
 
 function TipTapEditor(props: TipTapEditorProps) {
@@ -300,9 +304,10 @@ function TipTapEditor(props: TipTapEditorProps) {
       }),
       Placeholder.configure({
         placeholder: () =>
-          historyLengthRef.current === 0
+          props.placeholder ??
+          (historyLengthRef.current === 0
             ? "Ask anything, '/' for slash commands, '@' to add context"
-            : "Ask a follow-up",
+            : "Ask a follow-up"),
       }),
       Paragraph.extend({
         addKeyboardShortcuts() {
@@ -394,37 +399,41 @@ function TipTapEditor(props: TipTapEditorProps) {
         },
       }),
       Text,
-      Mention.configure({
-        HTMLAttributes: {
-          class: "mention",
-        },
-        suggestion: getContextProviderDropdownOptions(
-          availableContextProvidersRef,
-          getSubmenuContextItemsRef,
-          enterSubmenu,
-          onClose,
-          onOpen,
-          inSubmenuRef,
-          ideMessenger,
-        ),
-        renderHTML: (props) => {
-          return `@${props.node.attrs.label || props.node.attrs.id}`;
-        },
-      }),
-      SlashCommand.configure({
-        HTMLAttributes: {
-          class: "mention",
-        },
-        suggestion: getSlashCommandDropdownOptions(
-          availableSlashCommandsRef,
-          onClose,
-          onOpen,
-          ideMessenger,
-        ),
-        renderText: (props) => {
-          return props.node.attrs.label;
-        },
-      }),
+      props.availableContextProviders.length
+        ? Mention.configure({
+            HTMLAttributes: {
+              class: "mention",
+            },
+            suggestion: getContextProviderDropdownOptions(
+              availableContextProvidersRef,
+              getSubmenuContextItemsRef,
+              enterSubmenu,
+              onClose,
+              onOpen,
+              inSubmenuRef,
+              ideMessenger,
+            ),
+            renderHTML: (props) => {
+              return `@${props.node.attrs.label || props.node.attrs.id}`;
+            },
+          })
+        : undefined,
+      props.availableSlashCommands.length
+        ? SlashCommand.configure({
+            HTMLAttributes: {
+              class: "mention",
+            },
+            suggestion: getSlashCommandDropdownOptions(
+              availableSlashCommandsRef,
+              onClose,
+              onOpen,
+              ideMessenger,
+            ),
+            renderText: (props) => {
+              return props.node.attrs.label;
+            },
+          })
+        : undefined,
       CodeBlockExtension,
     ],
     editorProps: {
@@ -796,6 +805,7 @@ function TipTapEditor(props: TipTapEditorProps) {
 
   return (
     <InputBoxDiv
+      border={props.border}
       onKeyDown={(e) => {
         if (e.key === "Alt") {
           setOptionKeyHeld(true);
@@ -856,6 +866,7 @@ function TipTapEditor(props: TipTapEditorProps) {
         }}
       />
       <InputToolbar
+        toolbarOptions={props.toolbarOptions}
         showNoContext={optionKeyHeld}
         hidden={shouldHideToolbar && !props.isMainInput}
         onAddContextItem={() => {

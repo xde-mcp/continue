@@ -83,6 +83,13 @@ const EnterButton = styled.div<{ offFocus: boolean }>`
   cursor: pointer;
 `;
 
+export interface ToolbarOptions {
+  hideUseCodebase?: boolean;
+  hideImageUpload?: boolean;
+  hideAddContext?: boolean;
+  enterText?: string;
+}
+
 interface InputToolbarProps {
   onEnter?: (modifiers: InputModifiers) => void;
   usingCodebase?: boolean;
@@ -93,6 +100,7 @@ interface InputToolbarProps {
   onImageFileSelected?: (file: File) => void;
 
   hidden?: boolean;
+  toolbarOptions?: ToolbarOptions;
   showNoContext: boolean;
 }
 
@@ -114,16 +122,19 @@ function InputToolbar(props: InputToolbarProps) {
           <ModelSelect />
 
           <SecondToDisappearContainer>
-            <StyledSpan
-              onClick={(e) => {
-                props.onAddContextItem();
-              }}
-              className="hover:underline cursor-pointer"
-            >
-              Add Context{" "}
-              <PlusIcon className="h-2.5 w-2.5" aria-hidden="true" />
-            </StyledSpan>
-            {defaultModel &&
+            {props.toolbarOptions?.hideAddContext || (
+              <StyledSpan
+                onClick={(e) => {
+                  props.onAddContextItem();
+                }}
+                className="hover:underline cursor-pointer"
+              >
+                Add Context{" "}
+                <PlusIcon className="h-2.5 w-2.5" aria-hidden="true" />
+              </StyledSpan>
+            )}
+            {!props.toolbarOptions?.hideImageUpload &&
+              defaultModel &&
               modelSupportsImages(
                 defaultModel.provider,
                 defaultModel.model,
@@ -171,41 +182,42 @@ function InputToolbar(props: InputToolbarProps) {
         </span>
 
         <span className="flex items-center gap-2 whitespace-nowrap">
-          {props.showNoContext ? (
-            <span
-              style={{
-                color: props.usingCodebase ? vscBadgeBackground : lightGray,
-                backgroundColor: props.usingCodebase
-                  ? lightGray + "33"
-                  : undefined,
-                borderRadius: defaultBorderRadius,
-                padding: "2px 4px",
-              }}
-            >
-              {getAltKeyLabel()} ⏎{" "}
-              {useActiveFile ? "No context" : "Use active file"}
-            </span>
-          ) : (
-            <StyledSpan
-              style={{
-                color: props.usingCodebase ? vscBadgeBackground : lightGray,
-                backgroundColor: props.usingCodebase
-                  ? lightGray + "33"
-                  : undefined,
-                borderRadius: defaultBorderRadius,
-                padding: "2px 4px",
-              }}
-              onClick={(e) => {
-                props.onEnter({
-                  useCodebase: true,
-                  noContext: !useActiveFile,
-                });
-              }}
-              className={"hover:underline cursor-pointer float-right"}
-            >
-              {getMetaKeyLabel()} ⏎ Use codebase
-            </StyledSpan>
-          )}
+          {props.toolbarOptions?.hideUseCodebase ||
+            (props.showNoContext ? (
+              <span
+                style={{
+                  color: props.usingCodebase ? vscBadgeBackground : lightGray,
+                  backgroundColor: props.usingCodebase
+                    ? lightGray + "33"
+                    : undefined,
+                  borderRadius: defaultBorderRadius,
+                  padding: "2px 4px",
+                }}
+              >
+                {getAltKeyLabel()} ⏎{" "}
+                {useActiveFile ? "No context" : "Use active file"}
+              </span>
+            ) : (
+              <StyledSpan
+                style={{
+                  color: props.usingCodebase ? vscBadgeBackground : lightGray,
+                  backgroundColor: props.usingCodebase
+                    ? lightGray + "33"
+                    : undefined,
+                  borderRadius: defaultBorderRadius,
+                  padding: "2px 4px",
+                }}
+                onClick={(e) => {
+                  props.onEnter({
+                    useCodebase: true,
+                    noContext: !useActiveFile,
+                  });
+                }}
+                className={"hover:underline cursor-pointer float-right"}
+              >
+                {getMetaKeyLabel()} ⏎ Use codebase
+              </StyledSpan>
+            ))}
           <EnterButton
             offFocus={props.usingCodebase}
             onClick={(e) => {
@@ -215,7 +227,7 @@ function InputToolbar(props: InputToolbarProps) {
               });
             }}
           >
-            ⏎ Enter
+            ⏎ {props.toolbarOptions?.enterText ?? "Enter"}
           </EnterButton>
         </span>
       </StyledDiv>

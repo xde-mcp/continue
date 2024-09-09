@@ -1,4 +1,5 @@
 import { ConfigHandler } from "core/config/ConfigHandler";
+import { stripImages } from "core/llm/images";
 import {
   FromCoreProtocol,
   FromWebviewProtocol,
@@ -17,12 +18,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { VerticalPerLineDiffManager } from "../diff/verticalPerLine/manager";
-import { VsCodeIde } from "../VsCodeIde";
 import {
   getControlPlaneSessionInfo,
   WorkOsAuthProvider,
 } from "../stubs/WorkOsAuthProvider";
 import { getExtensionUri } from "../util/vscode";
+import { VsCodeIde } from "../VsCodeIde";
 import { VsCodeWebviewProtocol } from "../webviewProtocol";
 
 /**
@@ -190,6 +191,26 @@ export class VsCodeMessenger {
           msg.data.text,
         );
       });
+    });
+    this.onWebview("edit/sendPrompt", async (msg) => {
+      const prompt = msg.data.prompt;
+      const { start, end } = msg.data.range.range;
+      const verticalDiffManager = await verticalDiffManagerPromise;
+
+      const modelTitle = await this.webviewProtocol.request(
+        "getDefaultModelTitle",
+        undefined,
+      );
+      await verticalDiffManager.streamEdit(
+        stripImages(prompt),
+        modelTitle,
+        undefined,
+        undefined,
+        new vscode.Range(
+          new vscode.Position(start.line, start.character),
+          new vscode.Position(end.line, end.character),
+        ),
+      );
     });
 
     /** PASS THROUGH FROM WEBVIEW TO CORE AND BACK **/

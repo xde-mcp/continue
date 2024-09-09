@@ -6,6 +6,7 @@ import * as vscode from "vscode";
 
 import { ContextMenuConfig, IDE } from "core";
 import { CompletionProvider } from "core/autocomplete/completionProvider";
+import { RangeInFileWithContents } from "core/commands/util";
 import { ConfigHandler } from "core/config/ConfigHandler";
 import { ContinueServerClient } from "core/continueServer/stubs/client";
 import { Core } from "core/core";
@@ -84,20 +85,18 @@ function addCodeToContextFromRange(
   });
 }
 
-async function addHighlightedCodeToContext(
-  webviewProtocol: VsCodeWebviewProtocol | undefined,
-) {
+function getCurrentlyHighlightedCode(): RangeInFileWithContents | null {
   const editor = vscode.window.activeTextEditor;
   if (editor) {
     const selection = editor.selection;
     if (selection.isEmpty) {
-      return;
+      return null;
     }
     // adjust starting position to include indentation
     const start = new vscode.Position(selection.start.line, 0);
     const range = new vscode.Range(start, selection.end);
     const contents = editor.document.getText(range);
-    const rangeInFileWithContents = {
+    return {
       filepath: editor.document.uri.fsPath,
       contents,
       range: {
@@ -111,7 +110,15 @@ async function addHighlightedCodeToContext(
         },
       },
     };
+  }
+  return null;
+}
 
+async function addHighlightedCodeToContext(
+  webviewProtocol: VsCodeWebviewProtocol | undefined,
+) {
+  const rangeInFileWithContents = getCurrentlyHighlightedCode();
+  if (rangeInFileWithContents) {
     webviewProtocol?.request("highlightedCode", {
       rangeInFileWithContents,
     });
@@ -344,6 +351,23 @@ const commandsMap: (
     "continue.quickEdit": async (args: QuickEditShowParams) => {
       captureCommandTelemetry("quickEdit");
       quickEdit.show(args);
+    },
+    "continue.edit": async (args: QuickEditShowParams) => {
+      captureCommandTelemetry("quickEdit");
+
+      const fullScreenTab = getFullScreenTab();
+      if (!fullScreenTab) {
+        // focus sidebar
+        vscode.commands.executeCommand("continue.continueGUIView.focus");
+      } else {
+        // focus fullscreen
+        fullScreenPanel?.reveal();
+      }
+
+      await addHighlightedCodeToContext(sidebar.webviewProtocol);
+      sidebar.webviewProtocol?.request("startEditMode", {
+        highlightedCode: getCurrentlyHighlightedCode(),
+      });
     },
     "continue.writeCommentsForCode": async () => {
       captureCommandTelemetry("writeCommentsForCode");

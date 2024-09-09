@@ -13,6 +13,7 @@ import { IdeMessengerContext } from "../context/IdeMessenger";
 import { useWebviewListener } from "../hooks/useWebviewListener";
 import { isNewUserOnboarding } from "../pages/onboarding/utils";
 import { defaultModelSelector } from "../redux/selectors/modelSelectors";
+import { startEditMode } from "../redux/slices/editModeState";
 import {
   setBottomMessage,
   setBottomMessageCloseTimeout,
@@ -213,6 +214,15 @@ const Layout = () => {
         mode: "localAfterFreeTrial",
       });
       navigate("/localOnboarding");
+    },
+    [navigate],
+  );
+
+  useWebviewListener(
+    "startEditMode",
+    async (args) => {
+      dispatch(startEditMode(args));
+      navigate("/edit");
     },
     [navigate],
   );

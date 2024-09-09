@@ -1,5 +1,5 @@
 import type { RangeInFileWithContents } from "../commands/util.js";
-import type { ContextSubmenuItem } from "../index.js";
+import type { ContextSubmenuItem, MessageContent } from "../index.js";
 import { ToIdeFromWebviewOrCoreProtocol } from "./ide.js";
 import { ToWebviewFromIdeOrCoreProtocol } from "./webview.js";
 
@@ -27,7 +27,15 @@ export type ToIdeFromWebviewProtocol = ToIdeFromWebviewOrCoreProtocol & {
   copyText: [{ text: string }, void];
   "jetbrains/editorInsetHeight": [{ height: number }, void];
   setGitHubAuthToken: [{ token: string }, void];
+  "edit/sendPrompt": [
+    { prompt: MessageContent; range: RangeInFileWithContents },
+    void,
+  ];
 };
+
+export interface EditModeArgs {
+  highlightedCode: RangeInFileWithContents | null;
+}
 
 export type ToWebviewFromIdeProtocol = ToWebviewFromIdeOrCoreProtocol & {
   setInactive: [undefined, void];
@@ -61,4 +69,5 @@ export type ToWebviewFromIdeProtocol = ToWebviewFromIdeOrCoreProtocol & {
   setupLocalModel: [undefined, void];
   incrementFtc: [undefined, void];
   openOnboarding: [undefined, void];
+  startEditMode: [EditModeArgs, void];
 };
