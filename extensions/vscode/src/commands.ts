@@ -358,7 +358,13 @@ const commandsMap: (
       }
     },
     "continue.quickEdit": async (args: QuickEditShowParams) => {
-      captureCommandTelemetry("quickEdit");
+      let linesOfCode = undefined;
+      if (args.range) {
+        linesOfCode = args.range.end.line - args.range.start.line;
+      }
+      captureCommandTelemetry("quickEdit", {
+        linesOfCode,
+      });
       quickEdit.show(args);
     },
     "continue.edit": async () => {
