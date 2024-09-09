@@ -12,7 +12,7 @@ class EditDecorationManager {
       borderStyle: "solid",
       isWholeLine: true,
       cursor: "pointer",
-      gutterIconPath: context.asAbsolutePath("media/gutterIcon.png"),
+      //   gutterIconPath: context.asAbsolutePath("media/icon.png"),
       gutterIconSize: "contain",
     });
   }
