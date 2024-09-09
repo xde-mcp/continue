@@ -211,6 +211,34 @@ export class VsCodeMessenger {
           new vscode.Position(end.line, end.character),
         ),
       );
+
+      this.webviewProtocol.request("setEditStatus", {
+        status: "accepting",
+      });
+    });
+    this.onWebview("edit/acceptReject", async (msg) => {
+      const { onlyFirst, accept, filepath } = msg.data;
+      if (accept && onlyFirst) {
+        // Accept first
+        vscode.commands.executeCommand(
+          "continue.acceptVerticalDiffBlock",
+          filepath,
+          0,
+        );
+      } else if (accept) {
+        vscode.commands.executeCommand("continue.acceptDiff", filepath);
+        // Accept all
+      } else if (onlyFirst) {
+        // Reject first
+        vscode.commands.executeCommand(
+          "continue.rejectVerticalDiffBlock",
+          filepath,
+          0,
+        );
+      } else {
+        // Reject all
+        vscode.commands.executeCommand("continue.rejectDiff", filepath);
+      }
     });
 
     /** PASS THROUGH FROM WEBVIEW TO CORE AND BACK **/

@@ -31,11 +31,17 @@ export type ToIdeFromWebviewProtocol = ToIdeFromWebviewOrCoreProtocol & {
     { prompt: MessageContent; range: RangeInFileWithContents },
     void,
   ];
+  "edit/acceptReject": [
+    { accept: boolean; onlyFirst: boolean; filepath: string },
+    void,
+  ];
 };
 
 export interface EditModeArgs {
   highlightedCode: RangeInFileWithContents | null;
 }
+
+export type EditStatus = "not-started" | "streaming" | "accepting" | "done";
 
 export type ToWebviewFromIdeProtocol = ToWebviewFromIdeOrCoreProtocol & {
   setInactive: [undefined, void];
@@ -70,4 +76,5 @@ export type ToWebviewFromIdeProtocol = ToWebviewFromIdeOrCoreProtocol & {
   incrementFtc: [undefined, void];
   openOnboarding: [undefined, void];
   startEditMode: [EditModeArgs, void];
+  setEditStatus: [{ status: EditStatus }, void];
 };

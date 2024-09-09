@@ -3,15 +3,17 @@ import { JSONContent } from "@tiptap/core";
 import { InputModifiers } from "core";
 import { getBasename } from "core/util";
 import { usePostHog } from "posthog-js/react";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
+import { defaultBorderRadius, vscForeground } from "../components";
 import FileIcon from "../components/FileIcon";
 import resolveEditorContent from "../components/mainInput/resolveInput";
 import TipTapEditor from "../components/mainInput/TipTapEditor";
 import { IdeMessengerContext } from "../context/IdeMessenger";
 import { RootState } from "../redux/store";
+import { getMetaKeyLabel } from "../util";
 import { NewSessionButton } from "./chat";
 
 const TopDiv = styled.div`
@@ -26,11 +28,24 @@ const TopDiv = styled.div`
   }
 `;
 
+const AcceptRejectButton = styled.div<{ backgroundColor: string }>`
+  background-color: ${(props) => props.backgroundColor};
+  border-radius: ${defaultBorderRadius};
+  padding: 8px 16px;
+  color: ${vscForeground};
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  margin: 0 8px;
+`;
+
 function Edit() {
   const posthog = usePostHog();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const ideMessenger = useContext(IdeMessengerContext);
+
+  const [showCode, setShowCode] = useState(false);
 
   const editModeState = useSelector((state: RootState) => state.editModeState);
 
@@ -41,12 +56,6 @@ function Edit() {
       <TopDiv>
         <div className="max-w-3xl m-auto">
           <div className="flex px-2 relative">
-            <FileIcon
-              filename={editModeState.highlightedCode.filepath}
-              height={"18px"}
-              width={"18px"}
-            ></FileIcon>
-            {getBasename(editModeState.highlightedCode.filepath)}
             <TipTapEditor
               toolbarOptions={{
                 hideAddContext: true,
@@ -77,6 +86,33 @@ function Edit() {
                   range: editModeState.highlightedCode,
                 });
               }}
+              header={
+                <>
+                  <div
+                    className="p-1 flex cursor-pointer"
+                    style={{
+                      backgroundColor: "#fff2",
+                    }}
+                    onClick={() => {
+                      ideMessenger.ide.showLines(
+                        editModeState.highlightedCode.filepath,
+                        editModeState.highlightedCode.range.start.line,
+                        editModeState.highlightedCode.range.end.line,
+                      );
+                      setShowCode(!showCode);
+                    }}
+                  >
+                    <FileIcon
+                      filename={editModeState.highlightedCode.filepath}
+                      height={"18px"}
+                      width={"18px"}
+                    ></FileIcon>
+                    {getBasename(editModeState.highlightedCode.filepath)} (
+                    {editModeState.highlightedCode.range.start.line}-
+                    {editModeState.highlightedCode.range.end.line})
+                  </div>
+                </>
+              }
             ></TipTapEditor>
           </div>
         </div>
@@ -92,6 +128,35 @@ function Edit() {
             Back to chat
           </NewSessionButton>
         </div>
+
+        {editModeState.editStatus === "accepting" && (
+          <div className="flex w-full my-8">
+            <AcceptRejectButton
+              backgroundColor="#28a74588"
+              onClick={() =>
+                ideMessenger.request("edit/acceptReject", {
+                  accept: true,
+                  onlyFirst: false,
+                  filepath: editModeState.highlightedCode.filepath,
+                })
+              }
+            >
+              {getMetaKeyLabel()}⇧⏎ Accept all
+            </AcceptRejectButton>
+            <AcceptRejectButton
+              backgroundColor="#dc354588"
+              onClick={() =>
+                ideMessenger.request("edit/acceptReject", {
+                  accept: false,
+                  onlyFirst: false,
+                  filepath: editModeState.highlightedCode.filepath,
+                })
+              }
+            >
+              {getMetaKeyLabel()}⇧⌫ Reject all
+            </AcceptRejectButton>
+          </div>
+        )}
       </TopDiv>
     </>
   );

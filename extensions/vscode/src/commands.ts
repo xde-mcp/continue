@@ -364,7 +364,6 @@ const commandsMap: (
         fullScreenPanel?.reveal();
       }
 
-      await addHighlightedCodeToContext(sidebar.webviewProtocol);
       sidebar.webviewProtocol?.request("startEditMode", {
         highlightedCode: getCurrentlyHighlightedCode(),
       });

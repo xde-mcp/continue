@@ -61,13 +61,11 @@ import { ComboBoxItem } from "./types";
 const InputBoxDiv = styled.div<{ border?: string }>`
   resize: none;
 
-  padding: 8px 12px;
-  padding-bottom: 4px;
   font-family: inherit;
   border-radius: ${defaultBorderRadius};
   margin: 0;
   height: auto;
-  width: calc(100% - 24px);
+  width: 100%;
   background-color: ${vscInputBackground};
   color: ${vscForeground};
   z-index: 1;
@@ -87,6 +85,11 @@ const InputBoxDiv = styled.div<{ border?: string }>`
 
   display: flex;
   flex-direction: column;
+`;
+
+const PaddingDiv = styled.div`
+  padding: 8px 12px;
+  padding-bottom: 4px;
 `;
 
 const HoverDiv = styled.div`
@@ -145,6 +148,7 @@ interface TipTapEditorProps {
   toolbarOptions?: ToolbarOptions;
   border?: string;
   placeholder?: string;
+  header?: React.ReactNode;
 }
 
 function TipTapEditor(props: TipTapEditorProps) {
@@ -858,35 +862,40 @@ function TipTapEditor(props: TipTapEditorProps) {
         event.preventDefault();
       }}
     >
-      <EditorContent
-        spellCheck={false}
-        editor={editor}
-        onClick={(event) => {
-          event.stopPropagation();
-        }}
-      />
-      <InputToolbar
-        toolbarOptions={props.toolbarOptions}
-        showNoContext={optionKeyHeld}
-        hidden={shouldHideToolbar && !props.isMainInput}
-        onAddContextItem={() => {
-          if (editor.getText().endsWith("@")) {
-          } else {
-            editor.commands.insertContent("@");
-          }
-        }}
-        onEnter={onEnterRef.current}
-        onImageFileSelected={(file) => {
-          handleImageFile(file).then(([img, dataUrl]) => {
-            const { schema } = editor.state;
-            const node = schema.nodes.image.create({ src: dataUrl });
-            editor.commands.command(({ tr }) => {
-              tr.insert(0, node);
-              return true;
+      <div>{props.header}</div>
+
+      <PaddingDiv>
+        <EditorContent
+          spellCheck={false}
+          editor={editor}
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        />
+        <InputToolbar
+          toolbarOptions={props.toolbarOptions}
+          showNoContext={optionKeyHeld}
+          hidden={shouldHideToolbar && !props.isMainInput}
+          onAddContextItem={() => {
+            if (editor.getText().endsWith("@")) {
+            } else {
+              editor.commands.insertContent("@");
+            }
+          }}
+          onEnter={onEnterRef.current}
+          onImageFileSelected={(file) => {
+            handleImageFile(file).then(([img, dataUrl]) => {
+              const { schema } = editor.state;
+              const node = schema.nodes.image.create({ src: dataUrl });
+              editor.commands.command(({ tr }) => {
+                tr.insert(0, node);
+                return true;
+              });
             });
-          });
-        }}
-      />
+          }}
+        />
+      </PaddingDiv>
+
       {showDragOverMsg &&
         modelSupportsImages(
           defaultModel.provider,

@@ -13,7 +13,7 @@ import { IdeMessengerContext } from "../context/IdeMessenger";
 import { useWebviewListener } from "../hooks/useWebviewListener";
 import { isNewUserOnboarding } from "../pages/onboarding/utils";
 import { defaultModelSelector } from "../redux/selectors/modelSelectors";
-import { startEditMode } from "../redux/slices/editModeState";
+import { setEditStatus, startEditMode } from "../redux/slices/editModeState";
 import {
   setBottomMessage,
   setBottomMessageCloseTimeout,
@@ -226,6 +226,10 @@ const Layout = () => {
     },
     [navigate],
   );
+
+  useWebviewListener("setEditStatus", async ({ status }) => {
+    dispatch(setEditStatus(status));
+  });
 
   useEffect(() => {
     if (

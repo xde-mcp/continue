@@ -1,8 +1,6 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { RangeInFileWithContents } from "core/commands/util";
-import { EditModeArgs } from "core/protocol/ideWebview";
-
-type EditStatus = "not-started" | "streaming" | "accepting" | "done";
+import { EditModeArgs, EditStatus } from "core/protocol/ideWebview";
 
 interface EditModeState {
   highlightedCode: RangeInFileWithContents | null;
@@ -22,8 +20,11 @@ export const editModeStateSlice = createSlice({
       state.highlightedCode = payload.highlightedCode;
       state.editStatus = "not-started";
     },
+    setEditStatus: (state, { payload }: PayloadAction<EditStatus>) => {
+      state.editStatus = payload;
+    },
   },
 });
 
-export const { startEditMode } = editModeStateSlice.actions;
+export const { startEditMode, setEditStatus } = editModeStateSlice.actions;
 export default editModeStateSlice.reducer;
