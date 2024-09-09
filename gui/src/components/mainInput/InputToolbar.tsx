@@ -88,6 +88,7 @@ export interface ToolbarOptions {
   hideImageUpload?: boolean;
   hideAddContext?: boolean;
   enterText?: string;
+  hideSelectModel?: boolean;
 }
 
 interface InputToolbarProps {

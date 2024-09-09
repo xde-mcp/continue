@@ -77,6 +77,7 @@ function Edit() {
                 hideAddContext: true,
                 hideImageUpload: true,
                 hideUseCodebase: true,
+                hideSelectModel: true,
                 enterText: ["streaming", "accepting"].includes(
                   editModeState.editStatus,
                 )
@@ -145,20 +146,22 @@ function Edit() {
           </div>
         </div>
 
-        <div className="mt-2">
-          <NewSessionButton
-            onClick={async () => {
-              dispatch(setEditDone());
-            }}
-            className="mr-auto flex items-center gap-2"
-          >
-            <ArrowLeftIcon width="11px" height="11px" />
-            Back to chat
-          </NewSessionButton>
-        </div>
-
         {["accepting", "streaming"].includes(editModeState.editStatus) && (
-          <div className="flex w-full my-8">
+          <div className="flex w-full my-2">
+            <AcceptRejectButton
+              disabled={editModeState.editStatus !== "accepting"}
+              backgroundColor="#dc354588"
+              onClick={() => {
+                ideMessenger.request("edit/acceptReject", {
+                  accept: false,
+                  onlyFirst: false,
+                  filepath: editModeState.highlightedCode.filepath,
+                });
+                dispatch(setEditDone());
+              }}
+            >
+              <code>{getMetaKeyLabel()}⇧⌫</code> Reject all
+            </AcceptRejectButton>
             <AcceptRejectButton
               disabled={editModeState.editStatus !== "accepting"}
               backgroundColor="#28a74588"
@@ -173,22 +176,20 @@ function Edit() {
             >
               {getMetaKeyLabel()}⇧⏎ Accept all
             </AcceptRejectButton>
-            <AcceptRejectButton
-              disabled={editModeState.editStatus !== "accepting"}
-              backgroundColor="#dc354588"
-              onClick={() => {
-                ideMessenger.request("edit/acceptReject", {
-                  accept: false,
-                  onlyFirst: false,
-                  filepath: editModeState.highlightedCode.filepath,
-                });
-                dispatch(setEditDone());
-              }}
-            >
-              {getMetaKeyLabel()}⇧⌫ Reject all
-            </AcceptRejectButton>
           </div>
         )}
+
+        <div className="mt-2">
+          <NewSessionButton
+            onClick={async () => {
+              dispatch(setEditDone());
+            }}
+            className="mr-auto flex items-center gap-2"
+          >
+            <ArrowLeftIcon width="11px" height="11px" />
+            Back to chat
+          </NewSessionButton>
+        </div>
       </TopDiv>
     </>
   );
