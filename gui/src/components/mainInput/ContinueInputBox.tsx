@@ -8,7 +8,7 @@ import { selectSlashCommands } from "../../redux/selectors";
 import { newSession, setMessageAtIndex } from "../../redux/slices/stateSlice";
 import { RootState } from "../../redux/store";
 import ContextItemsPeek from "./ContextItemsPeek";
-import TipTapEditor from "./TipTapEditor/TipTapEditor";
+import TipTapEditor from "./TipTapEditor";
 
 const gradient = keyframes`
   0% {

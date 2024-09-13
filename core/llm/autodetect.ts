@@ -80,12 +80,12 @@ const MODEL_SUPPORTS_IMAGES: string[] = [
   "haiku",
 ];
 
-function modelSupportsImages({
-  capabilities,
-  provider,
-  title,
-  model,
-}: ModelDescription): boolean {
+function modelSupportsImages(
+  provider: ModelProvider,
+  model: string,
+  title: string | undefined,
+  capabilities: ModelCapability | undefined,
+): boolean {
   if (capabilities?.uploadImage !== undefined) {
     return capabilities.uploadImage;
   }
