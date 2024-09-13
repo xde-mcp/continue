@@ -7,6 +7,7 @@ import styled from "styled-components";
 import { visit } from "unist-util-visit";
 import {
   defaultBorderRadius,
+  lightGray,
   vscBackground,
   vscEditorBackground,
   vscForeground,
@@ -15,9 +16,9 @@ import { getFontSize } from "../../util";
 import LinkableCode from "./LinkableCode";
 import PreWithToolbar from "./PreWithToolbar";
 import { SyntaxHighlightedPre } from "./SyntaxHighlightedPre";
-import { common } from "lowlight";
 import "./katex.css";
 import "./markdown.css";
+import FileIcon from "../FileIcon";
 
 const StyledMarkdown = styled.div<{
   fontSize?: number;
@@ -110,6 +111,12 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
             } else if (node.lang.includes(".")) {
               node.lang = node.lang.split(".").slice(-1)[0];
             }
+
+            if (node.meta) {
+              node.data = node.data || {};
+              node.data.hProperties = node.data.hProperties || {};
+              node.data.hProperties.filename = node.meta;
+            }
           });
         };
       },
@@ -136,16 +143,23 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
           );
         },
         pre: ({ node, ...preProps }) => {
-          const childrenClassName = preProps?.children?.[0]?.props?.className;
+          const { className, filename } = preProps?.children?.[0]?.props;
 
           return props.showCodeBorder ? (
-            <PreWithToolbar
-              language={getLanuageFromClassName(childrenClassName)}
-            >
+            <PreWithToolbar language={getLanuageFromClassName(className)}>
+              {filename && (
+                <div
+                  className="border-t border-b-0 mb-0 p-2 border-x border-solid flex items-center"
+                  style={{ borderColor: lightGray }}
+                >
+                  <FileIcon height="20px" width="20px" filename={filename} />
+                  <span className="ml-0.5 text-sm">{filename}</span>
+                </div>
+              )}
               <SyntaxHighlightedPre {...preProps}></SyntaxHighlightedPre>
             </PreWithToolbar>
           ) : (
-            <SyntaxHighlightedPre {...preProps}></SyntaxHighlightedPre>
+            <SyntaxHighlightedPre {...preProps} />
           );
         },
         code: ({ node, ...codeProps }) => {

@@ -8,6 +8,9 @@ const StyledPre = styled.pre<{ theme: any }>`
     color: ${vscForeground};
   }
 
+  // TODO: Verify this is okay when the filename header isn't displayed above
+  margin-top: 0px;
+
   ${(props) =>
     Object.keys(props.theme)
       .map((key, index) => {

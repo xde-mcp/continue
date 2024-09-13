@@ -1,4 +1,9 @@
-import { ModelCapability, ModelProvider, TemplateType } from "../index.js";
+import {
+  ModelCapability,
+  ModelDescription,
+  ModelProvider,
+  TemplateType,
+} from "../index.js";
 import {
   anthropicTemplateMessages,
   chatmlTemplateMessages,
@@ -75,13 +80,15 @@ const MODEL_SUPPORTS_IMAGES: string[] = [
   "haiku",
 ];
 
-function modelSupportsImages(
-  provider: ModelProvider,
-  model: string,
-  title: string | undefined,
-  capabilities: ModelCapability | undefined
-): boolean {
-  if (capabilities?.uploadImage !== undefined) {return capabilities.uploadImage;}
+function modelSupportsImages({
+  capabilities,
+  provider,
+  title,
+  model,
+}: ModelDescription): boolean {
+  if (capabilities?.uploadImage !== undefined) {
+    return capabilities.uploadImage;
+  }
   if (!PROVIDER_SUPPORTS_IMAGES.includes(provider)) {
     return false;
   }

@@ -51,7 +51,7 @@ function PreWithToolbar(props: { children: any; language: string | null }) {
           text={copyValue}
           bottom={toolbarBottom}
           language={props.language}
-        ></CodeBlockToolBar>
+        />
       )}
       {props.children}
       {toolbarBottom && hovering && (
@@ -59,7 +59,7 @@ function PreWithToolbar(props: { children: any; language: string | null }) {
           text={copyValue}
           bottom={toolbarBottom}
           language={props.language}
-        ></CodeBlockToolBar>
+        />
       )}
     </div>
   );

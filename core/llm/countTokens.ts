@@ -329,7 +329,7 @@ function compileChatMessages(
   supportsImages: boolean,
   prompt: string | undefined = undefined,
   functions: any[] | undefined = undefined,
-  systemMessage: string | undefined = undefined,
+  systemMessage: string = "",
 ): ChatMessage[] {
   const msgsCopy = msgs
     ? msgs.map((msg) => ({ ...msg })).filter((msg) => msg.content !== "")
@@ -343,15 +343,32 @@ function compileChatMessages(
     msgsCopy.push(promptMsg);
   }
 
-  if (systemMessage && systemMessage.trim() !== "") {
-    const systemChatMsg: ChatMessage = {
-      role: "system",
-      content: systemMessage,
-    };
-    // Insert as second to last
-    // Later moved to top, but want second-priority to last user message
-    msgsCopy.splice(-1, 0, systemChatMsg);
-  }
+  // Why isn't this actually getting used as system message?
+  const systemMessageWithPreamble = `
+${systemMessage}
+
+If the user submits a code block that contains a filename in the language specifier,
+always include the filename in any code block you generate based on that file.
+The filename should be on the same line as the language specifier in your code block.
+For example, if a user submits a message with:
+
+\`\`\`test.js  (6-9)
+function helloWorld(){}
+\`\`\`
+
+Your code block should start like this:
+
+\`\`\`javascript test.js
+function helloWorld(){}
+\`\`\`
+`;
+
+  const systemChatMsg: ChatMessage = {
+    role: "system",
+    content: systemMessageWithPreamble,
+  };
+
+  msgsCopy.splice(-1, 0, systemChatMsg);
 
   let functionTokens = 0;
   if (functions) {

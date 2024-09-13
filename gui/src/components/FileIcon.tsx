@@ -1,19 +1,19 @@
 import DOMPurify from "dompurify";
 import { themeIcons } from "seti-file-icons";
 
-const FileIcon = ({
-  filename,
-  height,
-  width,
-}: {
+interface FileIconProps {
   filename: string;
   height: string;
   width: string;
-}) => {
+}
+
+const FileIcon = ({ filename, height, width }: FileIconProps) => {
   const filenameParts = filename.includes(" (")
     ? filename.split(" ")
     : [filename, ""];
+
   filenameParts.pop();
+
   const getIcon = themeIcons({
     blue: "#268bd2",
     grey: "#657b83",
@@ -27,6 +27,7 @@ const FileIcon = ({
     yellow: "#b58900",
     ignore: "#586e75",
   });
+
   // Sanitize the SVG string before rendering it
   const { svg, color } = getIcon(filenameParts.join(" "));
   const sanitizedSVG = DOMPurify.sanitize(svg);

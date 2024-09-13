@@ -26,6 +26,7 @@ import {
 import { getExtensionUri } from "../util/vscode";
 import { VsCodeIde } from "../VsCodeIde";
 import { VsCodeWebviewProtocol } from "../webviewProtocol";
+import { applyLazyCodeDeterministically } from "core/edit/lazy/deterministic";
 
 /**
  * A shared messenger class between Core and Webview
@@ -146,6 +147,13 @@ export class VsCodeMessenger {
         );
         return;
       }
+
+      // TODO: Get filename from codeblock
+      // applyLazyCodeDeterministically(
+      //   msg.data.text,
+      //   editor.document.getText(),
+      //   ide,
+      // );
 
       // Generate the diff and pass through diff manager
       const diffLines = streamLazyApply(
