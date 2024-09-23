@@ -12,33 +12,33 @@
 
 ## Easily understand code sections
 
-![understand](docs/static/img/understand.gif)
+![understand](docs/static/img/chat.gif)
 
-`cmd+L` (MacOS) / `ctrl+L` (Windows)
+`cmd/ctrl + L`
 
 ## Tab to autocomplete code suggestions
 
 ![autocomplete](docs/static/img/autocomplete.gif)
 
-`tab` (MacOS) / `tab` (Windows)
+`tab`
 
 ## Refactor functions where you are coding
 
-![inline](docs/static/img/inline.gif)
+![inline](docs/static/img/edit.gif)
 
-`cmd+I` (MacOS) / `ctrl+I` (Windows)
+`cmd/ctrl + I`
 
 ## Ask questions about your codebase
 
 ![codebase](docs/static/img/codebase.gif)
 
-`@codebase` (MacOS) / `@codebase` (Windows)
+`@codebase`
 
 ## Quickly use documentation as context
 
 ![docs](docs/static/img/docs.gif)
 
-`@docs` (MacOS) / `@docs` (Windows)
+`@docs`
 
 </div>
 
@@ -46,7 +46,7 @@
 
 You can try out Continue with our free trial models before configuring your setup.
 
-Learn more about the models and providers [here](https://continue.dev/docs/setup/overview).
+Learn more about the models and providers [here](https://docs.continue.dev/customize/model-providers/free-trial).
 
 ## License
 
