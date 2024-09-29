@@ -1,7 +1,10 @@
+import { ctxItemToRifWithContents } from "core/commands/util";
 import { memo, useEffect } from "react";
+import { useSelector } from "react-redux";
 import { useRemark } from "react-remark";
 import rehypeHighlight, { Options } from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
+import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import styled from "styled-components";
 import { visit } from "unist-util-visit";
@@ -11,15 +14,13 @@ import {
   vscEditorBackground,
   vscForeground,
 } from "..";
+import { memoizedContextItemsSelector } from "../../redux/slices/stateSlice";
 import { getFontSize } from "../../util";
-import "./katex.css";
 import FilenameLink from "./FilenameLink";
+import "./katex.css";
 import "./markdown.css";
 import PreWithToolbar from "./PreWithToolbar";
 import { SyntaxHighlightedPre } from "./SyntaxHighlightedPre";
-import { useSelector } from "react-redux";
-import { memoizedContextItemsSelector } from "../../redux/slices/stateSlice";
-import { ctxItemToRifWithContents } from "core/commands/util";
 
 const StyledMarkdown = styled.div<{
   fontSize?: number;
@@ -53,9 +54,19 @@ const StyledMarkdown = styled.div<{
   }
 
   background-color: ${vscBackground};
-  font-family: var(--vscode-font-family), system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
-    "Open Sans", "Helvetica Neue", sans-serif;
+  font-family:
+    var(--vscode-font-family),
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    "Open Sans",
+    "Helvetica Neue",
+    sans-serif;
   font-size: ${(props) => props.fontSize || getFontSize()}px;
   padding-left: 8px;
   padding-right: 8px;
@@ -120,12 +131,13 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
 
   const [reactContent, setMarkdownSource] = useRemark({
     remarkPlugins: [
+      remarkGfm,
       remarkMath,
       () => {
         return (tree) => {
           visit(tree, "code", (node: any) => {
             if (!node.lang) {
-              node.lang === "javascript";
+              node.lang = "javascript";
             } else if (node.lang.includes(".")) {
               node.lang = node.lang.split(".").slice(-1)[0];
             }
