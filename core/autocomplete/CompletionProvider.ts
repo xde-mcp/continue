@@ -23,15 +23,14 @@ import {
 import { Telemetry } from "../util/posthog.js";
 import { getRangeInString } from "../util/ranges.js";
 
-import AutocompleteLruCache from "./cache.js";
+import AutocompleteLruCache from "./AutocompleteLruCache.js";
+import { constructAutocompletePrompt } from "./constructPrompt.js";
 import {
-  constructAutocompletePrompt,
-  languageForFilepath,
-} from "./constructPrompt.js";
-import { isOnlyPunctuationAndWhitespace } from "./filter.js";
-import { AutocompleteLanguageInfo } from "./languages.js";
+  defaultFormatExternalSnippet,
+  getTemplateForModel,
+} from "./fimPromptTemplates.js";
+import { AutocompleteLanguageInfo, languageForFilepath } from "./languages.js";
 import { postprocessCompletion } from "./postprocessing.js";
-import { AutocompleteSnippet } from "./ranking.js";
 import { RecentlyEditedRange } from "./recentlyEdited.js";
 import { RootPathContextService } from "./services/RootPathContextService.js";
 import {
@@ -43,11 +42,18 @@ import {
   stopAtSimilarLine,
   streamWithNewLines,
 } from "./streamTransforms/lineStream.js";
-import { getTemplateForModel } from "./templates.js";
-import { GeneratorReuseManager } from "./util.js";
+import { isOnlyPunctuationAndWhitespace } from "./util/filter.js";
+import { GeneratorReuseManager } from "./util/GeneratorReuseManager.js";
+import { AutocompleteSnippet } from "./util/ranking.js";
 // @prettier-ignore
 import Handlebars from "handlebars";
 import { getConfigJsonPath } from "../util/paths.js";
+import {
+  commonStops,
+  ERRORS_TO_IGNORE,
+  multilineStops,
+  STARCODER2_T_ARTIFACTS,
+} from "./constants.js";
 import { BracketMatchingService } from "./services/BracketMatchingService.js";
 import { ImportDefinitionsService } from "./services/ImportDefinitionsService.js";
 import {
@@ -91,43 +97,6 @@ export interface AutocompleteOutcome extends TabAutocompleteOptions {
   uniqueId: string;
 }
 
-const autocompleteCache = AutocompleteLruCache.get();
-
-const DOUBLE_NEWLINE = "\n\n";
-const WINDOWS_DOUBLE_NEWLINE = "\r\n\r\n";
-const SRC_DIRECTORY = "/src/";
-// Starcoder2 tends to output artifacts starting with the letter "t"
-const STARCODER2_T_ARTIFACTS = ["t.", "\nt", "<file_sep>"];
-const PYTHON_ENCODING = "#- coding: utf-8";
-const CODE_BLOCK_END = "```";
-
-const multilineStops: string[] = [DOUBLE_NEWLINE, WINDOWS_DOUBLE_NEWLINE];
-const commonStops = [SRC_DIRECTORY, PYTHON_ENCODING, CODE_BLOCK_END];
-
-// Errors that can be expected on occasion even during normal functioning should not be shown.
-// Not worth disrupting the user to tell them that a single autocomplete request didn't go through
-const ERRORS_TO_IGNORE = [
-  // From Ollama
-  "unexpected server status",
-];
-
-function formatExternalSnippet(
-  filepath: string,
-  snippet: string,
-  language: AutocompleteLanguageInfo,
-) {
-  const comment = language.singleLineComment;
-  const lines = [
-    `${comment} Path: ${getBasename(filepath)}`,
-    ...snippet
-      .trim()
-      .split("\n")
-      .map((line) => `${comment} ${line}`),
-    comment,
-  ];
-  return lines.join("\n");
-}
-
 let shownGptClaudeWarning = false;
 const nonAutocompleteModels = [
   // "gpt",
@@ -148,6 +117,7 @@ export class CompletionProvider {
   private static debounceTimeout: NodeJS.Timeout | undefined = undefined;
   private static debouncing = false;
   private static lastUUID: string | undefined = undefined;
+  private static autocompleteCache = AutocompleteLruCache.get();
 
   constructor(
     private readonly configHandler: ConfigHandler,
@@ -201,6 +171,10 @@ export class CompletionProvider {
   private _logRejectionTimeouts = new Map<string, NodeJS.Timeout>();
   private _outcomes = new Map<string, AutocompleteOutcome>();
 
+  /**
+   * Log completion as accepted and notify services where necessary
+   * @param completionId A unique identifier for this completion request.
+   */
   public accept(completionId: string) {
     if (this._logRejectionTimeouts.has(completionId)) {
       clearTimeout(this._logRejectionTimeouts.get(completionId));
@@ -231,6 +205,10 @@ export class CompletionProvider {
     }
   }
 
+  /**
+   * We use a timeout to guess whether completion was rejected. This cancels that.
+   * @param completionId A unique identifier for this completion request.
+   */
   public cancelRejectionTimeout(completionId: string) {
     if (this._logRejectionTimeouts.has(completionId)) {
       clearTimeout(this._logRejectionTimeouts.get(completionId)!);
@@ -379,6 +357,11 @@ export class CompletionProvider {
   _lastDisplayedCompletion: { id: string; displayedAt: number } | undefined =
     undefined;
 
+  /**
+   * Called when a completion is displayed to the user
+   * @param completionId The completion ID
+   * @param outcome The outcome of the completion
+   */
   markDisplayed(completionId: string, outcome: AutocompleteOutcome) {
     const logRejectionTimeout = setTimeout(() => {
       // Wait 10 seconds, then assume it wasn't accepted
@@ -589,7 +572,11 @@ export class CompletionProvider {
       // Format snippets as comments and prepend to prefix
       const formattedSnippets = snippets
         .map((snippet) =>
-          formatExternalSnippet(snippet.filepath, snippet.contents, lang),
+          defaultFormatExternalSnippet(
+            snippet.filepath,
+            snippet.contents,
+            lang,
+          ),
         )
         .join("\n");
       if (formattedSnippets.length > 0) {
@@ -624,7 +611,7 @@ export class CompletionProvider {
     // Completion
     let completion = "";
 
-    const cache = await autocompleteCache;
+    const cache = await CompletionProvider.autocompleteCache;
     const cachedCompletion = options.useCache
       ? await cache.get(prefix)
       : undefined;

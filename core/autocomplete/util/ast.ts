@@ -1,6 +1,6 @@
 import Parser from "web-tree-sitter";
-import { RangeInFileWithContents } from "../commands/util.js";
-import { getParserForFile } from "../util/treeSitter.js";
+import { RangeInFileWithContents } from "../../commands/util.js";
+import { getParserForFile } from "../../util/treeSitter.js";
 
 export type AstPath = Parser.SyntaxNode[];
 
@@ -22,27 +22,39 @@ export async function getAst(
   }
 }
 
-export async function getTreePathAtCursor(
-  ast: Parser.Tree,
+export async function calculateRootPathToCursor(
+  filepath: string,
+  fileContents: string,
   cursorIndex: number,
-): Promise<AstPath> {
-  const path = [ast.rootNode];
-  while (path[path.length - 1].childCount > 0) {
-    let foundChild = false;
-    for (const child of path[path.length - 1].children) {
-      if (child.startIndex <= cursorIndex && child.endIndex >= cursorIndex) {
-        path.push(child);
-        foundChild = true;
-        break;
+): Promise<AstPath | undefined> {
+  try {
+    const ast = await getAst(filepath, fileContents);
+    if (ast) {
+      const path = [ast.rootNode];
+      while (path[path.length - 1].childCount > 0) {
+        let foundChild = false;
+        for (const child of path[path.length - 1].children) {
+          if (
+            child.startIndex <= cursorIndex &&
+            child.endIndex >= cursorIndex
+          ) {
+            path.push(child);
+            foundChild = true;
+            break;
+          }
+        }
+
+        if (!foundChild) {
+          break;
+        }
       }
-    }
 
-    if (!foundChild) {
-      break;
+      return path;
     }
+  } catch (e) {
+    console.error("Failed to parse AST", e);
+    return undefined;
   }
-
-  return path;
 }
 
 export async function getScopeAroundRange(

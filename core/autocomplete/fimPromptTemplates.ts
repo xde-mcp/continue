@@ -1,8 +1,13 @@
 // Fill in the middle prompts
 
 import { CompletionOptions } from "../index.js";
-import { getLastNPathParts, shortestRelativePaths } from "../util/index.js";
-import { AutocompleteSnippet } from "./ranking.js";
+import {
+  getBasename,
+  getLastNPathParts,
+  shortestRelativePaths,
+} from "../util/index.js";
+import { AutocompleteLanguageInfo } from "./languages.js";
+import { AutocompleteSnippet } from "./util/ranking.js";
 
 interface AutocompleteTemplate {
   compilePrefixSuffix?: (
@@ -329,6 +334,23 @@ function hypothenuse(a, b) {
     stop: ["</COMPLETION>"],
   },
 };
+
+export function defaultFormatExternalSnippet(
+  filepath: string,
+  snippet: string,
+  language: AutocompleteLanguageInfo,
+) {
+  const comment = language.singleLineComment;
+  const lines = [
+    `${comment} Path: ${getBasename(filepath)}`,
+    ...snippet
+      .trim()
+      .split("\n")
+      .map((line) => `${comment} ${line}`),
+    comment,
+  ];
+  return lines.join("\n");
+}
 
 export function getTemplateForModel(model: string): AutocompleteTemplate {
   const lowerCaseModel = model.toLowerCase();

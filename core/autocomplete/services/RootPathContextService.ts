@@ -3,8 +3,8 @@ import { LRUCache } from "lru-cache";
 import Parser from "web-tree-sitter";
 import { IDE } from "../..";
 import { getQueryForFile, TSQueryType } from "../../util/treeSitter";
-import { AstPath } from "../ast";
-import { AutocompleteSnippet } from "../ranking";
+import { AstPath } from "../util/ast";
+import { AutocompleteSnippet } from "../util/ranking";
 import { ImportDefinitionsService } from "./ImportDefinitionsService";
 
 export class RootPathContextService {
