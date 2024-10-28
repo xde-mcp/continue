@@ -165,6 +165,12 @@
         "group": "Continue"
       },
       {
+        "command": "continue.exitEditMode",
+        "category": "Continue",
+        "title": "Exit Edit Mode",
+        "group": "Continue"
+      },
+      {
         "command": "continue.focusContinueInput",
         "category": "Continue",
         "title": "Add Highlighted Code to Context",

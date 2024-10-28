@@ -396,6 +396,11 @@ const commandsMap: (
         sidebar.webviewProtocol?.request("focusContinueInput", undefined);
       }, 30);
     },
+    "continue.exitEditMode": async () => {
+      captureCommandTelemetry("exitEditMode");
+
+      await sidebar.webviewProtocol?.request("exitEditMode", undefined);
+    },
     "continue.writeCommentsForCode": async () => {
       captureCommandTelemetry("writeCommentsForCode");
 

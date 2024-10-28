@@ -78,4 +78,5 @@ export type ToWebviewFromIdeProtocol = ToWebviewFromIdeOrCoreProtocol & {
   openOnboarding: [undefined, void];
   startEditMode: [EditModeArgs, void];
   setEditStatus: [{ status: EditStatus }, void];
+  exitEditMode: [undefined, void];
 };
