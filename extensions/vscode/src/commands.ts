@@ -16,6 +16,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import readLastLines from "read-last-lines";
 import * as vscode from "vscode";
+import { createSvgAndSaveDecorationType } from "./autocomplete/canvas/svg";
 import {
   StatusBarStatus,
   getAutocompleteStatusBarDescription,
@@ -380,40 +381,59 @@ const commandsMap: (
       }
     },
     "continue.edit": async () => {
-      captureCommandTelemetry("edit");
-      const fullScreenTab = getFullScreenTab();
-      if (!fullScreenTab) {
-        // focus sidebar
-        vscode.commands.executeCommand("continue.continueGUIView.focus");
-      } else {
-        // focus fullscreen
-        fullScreenPanel?.reveal();
-      }
-
+      const decorationType = await createSvgAndSaveDecorationType([
+        { type: "new", line: "new line" },
+        { type: "old", line: "old line" },
+        { type: "new", line: "new line" },
+        { type: "old", line: "old line" },
+        { type: "old", line: "line" },
+      ]);
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         return;
       }
 
-      editDecorationManager.setDecoration(
-        editor,
-        new vscode.Range(editor.selection.start, editor.selection.end),
-      );
+      // Place at the current line
+      const line = editor.selection.active.line;
+      const lineLength = editor.document.lineAt(line).text.length;
+      const range = new vscode.Range(line, lineLength, line, lineLength);
+      editor.setDecorations(decorationType, [range]);
 
-      const highlightedCode = getCurrentlyHighlightedCode(true)!;
-      await sidebar.webviewProtocol?.request("startEditMode", {
-        highlightedCode,
-      });
+      return;
+      // captureCommandTelemetry("edit");
+      // const fullScreenTab = getFullScreenTab();
+      // if (!fullScreenTab) {
+      //   // focus sidebar
+      //   vscode.commands.executeCommand("continue.continueGUIView.focus");
+      // } else {
+      //   // focus fullscreen
+      //   fullScreenPanel?.reveal();
+      // }
 
-      // Un-select the current selection
-      editor.selection = new vscode.Selection(
-        editor.selection.anchor,
-        editor.selection.anchor,
-      );
+      // const editor = vscode.window.activeTextEditor;
+      // if (!editor) {
+      //   return;
+      // }
 
-      setTimeout(() => {
-        sidebar.webviewProtocol?.request("focusContinueInput", undefined);
-      }, 30);
+      // editDecorationManager.setDecoration(
+      //   editor,
+      //   new vscode.Range(editor.selection.start, editor.selection.end),
+      // );
+
+      // const highlightedCode = getCurrentlyHighlightedCode(true)!;
+      // await sidebar.webviewProtocol?.request("startEditMode", {
+      //   highlightedCode,
+      // });
+
+      // // Un-select the current selection
+      // editor.selection = new vscode.Selection(
+      //   editor.selection.anchor,
+      //   editor.selection.anchor,
+      // );
+
+      // setTimeout(() => {
+      //   sidebar.webviewProtocol?.request("focusContinueInput", undefined);
+      // }, 30);
     },
     "continue.exitEditMode": async () => {
       captureCommandTelemetry("exitEditMode");
