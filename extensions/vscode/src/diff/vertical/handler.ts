@@ -412,11 +412,11 @@ export class VerticalDiffHandler implements vscode.Disposable {
     // Shift the codelens objects
     this.shiftCodeLensObjects(startLine, offset);
 
-    const status = this.diffBlocks.length === 0 ? "closed" : undefined;
-    this.options.onStatusUpdate(
-      status,
-      this.editorToVerticalDiffCodeLens.get(this.filepath)?.length ?? 0,
-    );
+    const numDiffs =
+      this.editorToVerticalDiffCodeLens.get(this.filepath)?.length ?? 0;
+
+    const status = numDiffs === 0 ? "closed" : undefined;
+    this.options.onStatusUpdate(status, numDiffs);
   }
 
   private shiftCodeLensObjects(startLine: number, offset: number) {
