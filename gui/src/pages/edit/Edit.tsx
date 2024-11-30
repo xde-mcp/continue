@@ -92,6 +92,7 @@ export default function Edit() {
     hideImageUpload: false,
     hideUseCodebase: true,
     hideSelectModel: false,
+    hideTools: false,
     enterText: isStreaming ? "Retry" : "Edit",
   };
 
