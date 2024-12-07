@@ -97,7 +97,7 @@ async function resolveEditorContent({
         const [start, end] = lines.split("-");
 
         selectedCode.push({
-          filepath: p.attrs.item.description,
+          uri: p.attrs.item.description,
           range: {
             start: { line: parseInt(start) - 1, character: 0 },
             end: { line: parseInt(end) - 1, character: 0 },

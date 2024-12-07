@@ -96,7 +96,7 @@ export function groupByLastNPathParts(
   );
 }
 
-export function getUniqueFilePath(
+export function getUniqueFileUri(
   item: string,
   itemGroups: Record<string, string[]>,
 ): string {

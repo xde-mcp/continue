@@ -73,7 +73,7 @@ export default function CodeToEditListItem({
         className={`hover:bg-lightgray hover:text-vsc-foreground flex items-center justify-between rounded px-2 py-0.5 transition-colors hover:bg-opacity-20 ${showCodeSnippet && "text-vsc-foreground bg-lightgray bg-opacity-20"}`}
       >
         <div className="flex w-4/5 min-w-0 items-center gap-0.5">
-          <FileIcon filename={code.fileUri} height={"18px"} width={"18px"} />
+          <FileIcon filename={code.uri} height={"18px"} width={"18px"} />
           <div className="flex min-w-0 gap-1.5">
             <span
               className="flex-shrink-0 text-xs hover:underline"

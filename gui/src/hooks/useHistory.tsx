@@ -97,7 +97,7 @@ function useHistory(dispatch: Dispatch) {
     const session: Session = {
       sessionId,
       title: newTitle,
-      workspaceDirectory: window.workspacePaths?.[0] || "",
+      workspaceDirectory: window.workspaceDirUris?.[0] || "",
       history,
     };
 

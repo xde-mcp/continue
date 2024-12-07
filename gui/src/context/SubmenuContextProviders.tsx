@@ -3,7 +3,7 @@ import { createContext } from "react";
 import {
   deduplicateArray,
   getBasename,
-  getUniqueFilePath,
+  getUniqueFileUri,
   groupByLastNPathParts,
 } from "core/util";
 import MiniSearch, { SearchResult } from "minisearch";
@@ -83,8 +83,6 @@ export const SubmenuContextProvidersProvider = ({
   const [isLoading, setIsLoading] = useState(false);
   const [autoLoadTriggered, setAutoLoadTriggered] = useState(false);
 
-  const config = useAppSelector((store) => store.config.config);
-
   const ideMessenger = useContext(IdeMessengerContext);
 
   const getOpenFilesItems = useCallback(async () => {
@@ -94,7 +92,7 @@ export const SubmenuContextProvidersProvider = ({
     return openFiles.map((file) => ({
       id: file,
       title: getBasename(file),
-      description: getUniqueFilePath(file, openFileGroups),
+      description: getUniqueFileUri(file, openFileGroups),
       providerTitle: "file",
     }));
   }, [ideMessenger]);

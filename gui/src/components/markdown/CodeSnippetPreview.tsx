@@ -81,7 +81,7 @@ function CodeSnippetPreview(props: CodeSnippetPreviewProps) {
           onClick={() => {
             if (props.item.id.providerTitle === "file") {
               ideMessenger.post("showFile", {
-                filepath: props.item.description,
+                uri: props.item.description,
               });
             } else if (props.item.id.providerTitle === "code") {
               const lines = props.item.name

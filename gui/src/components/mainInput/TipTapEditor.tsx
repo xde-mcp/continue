@@ -493,11 +493,11 @@ function TipTapEditor(props: TipTapEditorProps) {
           allow: () => isInEditModeRef.current,
           command: async ({ editor, range, props }) => {
             editor.chain().focus().insertContentAt(range, "").run();
-            const fileUri = props.id;
-            const contents = await ideMessenger.ide.readFile(fileUri);
+            const uri = props.id;
+            const contents = await ideMessenger.ide.readFile(uri);
             dispatch(
               addCodeToEdit({
-                fileUri,
+                uri,
                 contents,
               }),
             );
@@ -733,9 +733,9 @@ function TipTapEditor(props: TipTapEditorProps) {
 
       const rif: RangeInFile & { contents: string } =
         data.rangeInFileWithContents;
-      const basename = getBasename(rif.fileUri);
+      const basename = getBasename(rif.uri);
       const relativePath = getRelativePath(
-        rif.fileUri,
+        rif.uri,
         await ideMessenger.ide.getWorkspaceDirs(),
       );
       const rangeStr = `(${rif.range.start.line + 1}-${
@@ -754,7 +754,7 @@ function TipTapEditor(props: TipTapEditorProps) {
         },
         uri: {
           type: "file",
-          value: rif.fileUri,
+          value: rif.uri,
         },
       };
 

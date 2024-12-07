@@ -21,9 +21,9 @@ export default function AcceptRejectAllButtons({
   const isSingleRangeEdit = useAppSelector(selectIsSingleRangeEditOrInsertion);
 
   async function handleAcceptOrReject(status: AcceptOrRejectOutcome) {
-    for (const { filepath, streamId } of pendingApplyStates) {
+    for (const { fileUri, streamId } of pendingApplyStates) {
       ideMessenger.post(status, {
-        filepath,
+        fileUri,
         streamId,
       });
     }
