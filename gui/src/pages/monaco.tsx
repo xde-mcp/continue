@@ -29,7 +29,7 @@ function EditorFrame(props: EditorFrameProps) {
     };
     window.addEventListener("message", eventListener);
 
-    ideMessenger.post("readFile", { filepath: props.filename });
+    ideMessenger.post("readFile", { fileUri: props.filename });
 
     return () => window.removeEventListener("message", eventListener);
   }, []);
@@ -46,7 +46,7 @@ function EditorFrame(props: EditorFrameProps) {
           className="cursor-pointer"
           onClick={() => {
             ideMessenger.post("showFile", {
-              filepath: props.filename,
+              fileUri: props.filename,
             });
           }}
         >

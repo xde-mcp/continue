@@ -17,9 +17,9 @@ export default function AddFileButton({ onClick }: AddFileButtonProps) {
   async function handleAddAllOpenFiles() {
     const openFiles = await ideMessenger.ide.getOpenFiles();
     const filesData = await Promise.all(
-      openFiles.map(async (filepath) => {
-        const contents = await ideMessenger.ide.readFile(filepath);
-        return { filepath, contents };
+      openFiles.map(async (uri) => {
+        const contents = await ideMessenger.ide.readFile(uri);
+        return { uri, contents };
       }),
     );
 

@@ -39,7 +39,7 @@ function ContextItemsPeekItem({ contextItem }: ContextItemsPeekItemProps) {
       if (isRangeInFile) {
         const rif = ctxItemToRifWithContents(contextItem);
         ideMessenger.ide.showLines(
-          rif.filepath,
+          rif.uri,
           rif.range.start.line,
           rif.range.end.line,
         );

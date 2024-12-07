@@ -148,7 +148,7 @@ function processCodeBlocks(tree: any) {
 
     if (node.meta) {
       let meta = node.meta.split(" ");
-      node.data.hProperties.filepath = meta[0];
+      node.data.hProperties.fileUri = meta[0];
       node.data.hProperties.range = meta[1];
     }
   });
@@ -220,7 +220,7 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
         },
         pre: ({ node, ...preProps }) => {
           const preChildProps = preProps?.children?.[0]?.props;
-          const { className, filepath, range } = preProps?.children?.[0]?.props;
+          const { className, fileUri, range } = preProps?.children?.[0]?.props;
 
           const codeBlockContent = preChildProps["data-codeblockcontent"];
           const isGeneratingCodeBlock =
@@ -232,11 +232,11 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
 
           const language = getLanuageFromClassName(className);
 
-          // If we don't have a filepath show the more basic toolbar
+          // If we don't have a fileUri show the more basic toolbar
           // that is just action buttons on hover.
           // We also use this in JB since we haven't yet implemented
           // the logic for lazy apply.
-          if (!filepath || isJetBrains()) {
+          if (!fileUri || isJetBrains()) {
             return (
               <StepContainerPreActionButtons
                 language={language}
@@ -254,7 +254,7 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
               codeBlockContent={codeBlockContent}
               codeBlockIndex={preProps.codeBlockIndex}
               language={language}
-              filepath={filepath}
+              fileUri={fileUri}
               isGeneratingCodeBlock={isGeneratingCodeBlock}
               range={range}
             >

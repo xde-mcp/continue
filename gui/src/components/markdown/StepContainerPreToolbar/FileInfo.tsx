@@ -5,16 +5,16 @@ import { useContext } from "react";
 import { IdeMessengerContext } from "../../../context/IdeMessenger";
 
 export interface FileInfoProps {
-  filepath: string;
+  fileUri: string;
   range?: string;
 }
 
-const FileInfo = ({ filepath, range }: FileInfoProps) => {
+const FileInfo = ({ fileUri, range }: FileInfoProps) => {
   const ideMessenger = useContext(IdeMessengerContext);
 
   function onClickFileName() {
     ideMessenger.post("showFile", {
-      filepath,
+      fileUri,
     });
   }
 
@@ -24,9 +24,9 @@ const FileInfo = ({ filepath, range }: FileInfoProps) => {
         className="mr-0.5 flex w-full min-w-0 cursor-pointer items-center gap-0.5"
         onClick={onClickFileName}
       >
-        <FileIcon height="20px" width="20px" filename={filepath} />
+        <FileIcon height="20px" width="20px" filename={fileUri} />
         <span className="w-full truncate hover:underline">
-          {getBasename(filepath)}
+          {getBasename(fileUri)}
           {range && ` ${range}`}
         </span>
       </div>

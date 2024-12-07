@@ -228,7 +228,7 @@ function AddDocsDialog() {
                   />
                   <ToolTip id={id + "-info"} place="bottom">
                     <p className="m-0 p-0">{`Version: ${version}`}</p>
-                    <p className="m-0 p-0">{`Found in ${docsResult.packageInfo.packageFile.path}`}</p>
+                    <p className="m-0 p-0">{`Found in ${docsResult.packageInfo.packageFile.uri}`}</p>
                   </ToolTip>
                 </div>
               </div>

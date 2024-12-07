@@ -30,8 +30,8 @@ export default function UndoAndRedoButtons() {
 
     const checkpoint = checkpoints[checkpointIndex];
 
-    for (const [filepath, prevFileContent] of Object.entries(checkpoint)) {
-      ideMessenger.post("overwriteFile", { filepath, prevFileContent });
+    for (const [fileUri, prevFileContent] of Object.entries(checkpoint)) {
+      ideMessenger.post("overwriteFile", { fileUri, prevFileContent });
     }
 
     dispatch(setCurCheckpointIndex(checkpointIndex));

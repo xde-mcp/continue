@@ -6,7 +6,7 @@ export default function getMultifileEditPrompt(
   const codeToEditStr = codeToEdit
     .map(
       (code) => `
-\`\`\` ${code.filepath}
+\`\`\` ${code.uri}
 ${code.contents}
 \`\`\`
   `,
@@ -32,12 +32,12 @@ Here's an example of how your response should be structured:
 I'll make the following changes to implement feature X:
 
 1. First, I'll modify file1.js to add a new function:
-\`\`\`javascript /path/to/file1.js
+\`\`\`javascript /uri/to/file1.js
 // Entire content of file1.js or changes to be made
 \`\`\`
 
 2. Next, let's create a new test file:
-\`\`\`javascript /path/to/file1.test.js
+\`\`\`javascript /uri/to/file1.test.js
 # Entire content of file2.py or changes to be made
 \`\`\`
 

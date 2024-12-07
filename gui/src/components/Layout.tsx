@@ -129,7 +129,7 @@ const Layout = () => {
     async (state) => {
       // dispatch(
       //   updateCurCheckpoint({
-      //     filepath: state.filepath,
+      //     filepath: state.fileUri,
       //     content: state.fileContent,
       //   }),
       // );

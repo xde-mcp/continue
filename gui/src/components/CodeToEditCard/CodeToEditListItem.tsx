@@ -35,11 +35,11 @@ export default function CodeToEditListItem({
 }: CodeToEditListItemProps) {
   const [showCodeSnippet, setShowCodeSnippet] = useState(false);
 
-  const filepath = code.filepath.split("/").pop() || code.filepath;
-  const fileSubpath = getLastNPathParts(code.filepath, 2);
+  const uri = code.uri.split("/").pop() || code.uri;
+  const fileSubpath = getLastNPathParts(code.uri, 2);
 
   let isInsertion = false;
-  let title = filepath;
+  let title = uri;
 
   if ("range" in code) {
     const start = code.range.start.line + 1;
@@ -54,7 +54,7 @@ export default function CodeToEditListItem({
 
   const source =
     "```" +
-    getMarkdownLanguageTagForFile(code.filepath) +
+    getMarkdownLanguageTagForFile(code.uri) +
     "\n" +
     code.contents +
     "\n" +
@@ -73,7 +73,7 @@ export default function CodeToEditListItem({
         className={`hover:bg-lightgray hover:text-vsc-foreground flex items-center justify-between rounded px-2 py-0.5 transition-colors hover:bg-opacity-20 ${showCodeSnippet && "text-vsc-foreground bg-lightgray bg-opacity-20"}`}
       >
         <div className="flex w-4/5 min-w-0 items-center gap-0.5">
-          <FileIcon filename={code.filepath} height={"18px"} width={"18px"} />
+          <FileIcon filename={code.fileUri} height={"18px"} width={"18px"} />
           <div className="flex min-w-0 gap-1.5">
             <span
               className="flex-shrink-0 text-xs hover:underline"

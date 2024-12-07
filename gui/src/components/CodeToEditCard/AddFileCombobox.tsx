@@ -8,7 +8,7 @@ import FileIcon from "../FileIcon";
 import { useAppSelector } from "../../redux/hooks";
 
 export interface AddFileComboboxProps {
-  onSelect: (filepaths: string[]) => void;
+  onSelect: (uris: string[]) => void;
   onEscape: () => void;
 }
 
@@ -27,7 +27,7 @@ export default function AddFileCombobox({
   const allFiles = getSubmenuContextItems("file", "");
   const codeToEdit = useAppSelector((state) => state.session.codeToEdit);
   const remainingFiles = allFiles.filter(
-    (file) => !codeToEdit.find((code) => code.filepath === file.id),
+    (file) => !codeToEdit.find((code) => code.uri === file.id),
   );
 
   useEffect(() => {

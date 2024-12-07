@@ -34,8 +34,8 @@ export interface ChunkWithoutID {
 
 export interface Chunk extends ChunkWithoutID {
   digest: string;
-  filepath: string;
-  index: number; // Index of the chunk in the document at filepath
+  fileUri: string;
+  index: number; // Index of the chunk in the document at fileUri
 }
 
 export interface IndexingProgressUpdate {
@@ -241,7 +241,7 @@ export interface IContextProvider {
 }
 
 export interface Checkpoint {
-  [filepath: string]: string;
+  [fileUri: string]: string;
 }
 
 export interface Session {
@@ -259,17 +259,17 @@ export interface SessionMetadata {
 }
 
 export interface RangeInFile {
-  filepath: string;
+  uri: string;
   range: Range;
 }
 
 export interface Location {
-  filepath: string;
+  uri: string;
   position: Position;
 }
 
 export interface FileWithContents {
-  filepath: string;
+  uri: string;
   contents: string;
 }
 
@@ -284,7 +284,7 @@ export interface Position {
 }
 
 export interface FileEdit {
-  filepath: string;
+  uri: string;
   range: Range;
   replacement: string;
 }
@@ -529,7 +529,7 @@ export interface DiffLine {
 }
 
 export class Problem {
-  filepath: string;
+  uri: string;
   range: Range;
   message: string;
 }
@@ -604,37 +604,29 @@ export interface IDE {
 
   getWorkspaceConfigs(): Promise<ContinueRcJson[]>;
 
-  fileExists(filepath: string): Promise<boolean>;
+  fileExists(uri: string): Promise<boolean>;
 
-  writeFile(path: string, contents: string): Promise<void>;
+  writeFile(uri: string, contents: string): Promise<void>;
 
   showVirtualFile(title: string, contents: string): Promise<void>;
 
   getContinueDir(): Promise<string>;
 
-  openFile(path: string): Promise<void>;
+  openFile(uri: string): Promise<void>;
 
   openUrl(url: string): Promise<void>;
 
   runCommand(command: string): Promise<void>;
 
-  saveFile(filepath: string): Promise<void>;
+  saveFile(uri: string): Promise<void>;
 
-  readFile(filepath: string): Promise<string>;
+  readFile(uri: string): Promise<string>;
 
-  readRangeInFile(filepath: string, range: Range): Promise<string>;
+  readRangeInFile(uri: string, range: Range): Promise<string>;
 
-  showLines(
-    filepath: string,
-    startLine: number,
-    endLine: number,
-  ): Promise<void>;
+  showLines(uri: string, startLine: number, endLine: number): Promise<void>;
 
-  showDiff(
-    filepath: string,
-    newContents: string,
-    stepIndex: number,
-  ): Promise<void>;
+  showDiff(uri: string, newContents: string, stepIndex: number): Promise<void>;
 
   getOpenFiles(): Promise<string[]>;
 
@@ -642,7 +634,7 @@ export interface IDE {
     | undefined
     | {
         isUntitled: boolean;
-        path: string;
+        uri: string;
         contents: string;
       }
   >;
@@ -653,7 +645,7 @@ export interface IDE {
 
   subprocess(command: string, cwd?: string): Promise<[string, string]>;
 
-  getProblems(filepath?: string | undefined): Promise<Problem[]>;
+  getProblems(uri?: string | undefined): Promise<Problem[]>;
 
   getBranch(dir: string): Promise<string>;
 
@@ -667,11 +659,11 @@ export interface IDE {
     ...otherParams: any[]
   ): Promise<any>;
 
-  getGitRootPath(dir: string): Promise<string | undefined>;
+  getGitRootUri(dir: string): Promise<string | undefined>;
 
   listDir(dir: string): Promise<[string, FileType][]>;
 
-  getLastModified(files: string[]): Promise<{ [path: string]: number }>;
+  getLastModified(uris: string[]): Promise<{ [uri: string]: number }>;
 
   getGitHubAuthToken(args: GetGhTokenArgs): Promise<string | undefined>;
 
@@ -679,7 +671,7 @@ export interface IDE {
   gotoDefinition(location: Location): Promise<RangeInFile[]>;
 
   // Callbacks
-  onDidChangeActiveTextEditor(callback: (filepath: string) => void): void;
+  onDidChangeActiveTextEditor(callback: (uri: string) => void): void;
 
   pathSep(): Promise<string>;
 }
@@ -1185,12 +1177,12 @@ export interface ApplyState {
   streamId: string;
   status?: ApplyStateStatus;
   numDiffs?: number;
-  filepath?: string;
+  fileUri?: string;
   fileContent?: string;
 }
 
 export interface RangeInFileWithContents {
-  filepath: string;
+  uri: string;
   range: {
     start: { line: number; character: number };
     end: { line: number; character: number };
@@ -1382,18 +1374,18 @@ export interface BrowserSerializedContinueConfig {
 }
 
 // DOCS SUGGESTIONS AND PACKAGE INFO
-export interface FilePathAndName {
-  path: string;
+export interface FileUriAndName {
+  uri: string;
   name: string;
 }
 
-export interface PackageFilePathAndName extends FilePathAndName {
+export interface PackageFileUriAndName extends FileUriAndName {
   packageRegistry: string; // e.g. npm, pypi
 }
 
 export type ParsedPackageInfo = {
   name: string;
-  packageFile: PackageFilePathAndName;
+  packageFile: PackageFileUriAndName;
   language: string;
   version: string;
 };

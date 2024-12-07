@@ -32,19 +32,19 @@ export default function CodeToEditCard() {
   function onClickFilename(code: CodeToEdit) {
     if ("range" in code) {
       ideMessenger.ide.showLines(
-        code.filepath,
+        code.uri,
         code.range.start.line,
         code.range.end.line,
       );
     } else {
-      ideMessenger.ide.openFile(code.filepath);
+      ideMessenger.ide.openFile(code.uri);
     }
   }
 
-  async function onSelectFilesToAdd(filepaths: string[]) {
-    const filePromises = filepaths.map(async (filepath) => {
-      const contents = await ideMessenger.ide.readFile(filepath);
-      return { contents, filepath };
+  async function onSelectFilesToAdd(uris: string[]) {
+    const filePromises = uris.map(async (uri) => {
+      const contents = await ideMessenger.ide.readFile(uri);
+      return { contents, uri };
     });
 
     const fileResults = await Promise.all(filePromises);
@@ -65,7 +65,7 @@ export default function CodeToEditCard() {
         <ul className="no-scrollbar my-0 mb-1.5 max-h-[50vh] list-outside list-none overflow-y-auto pl-0">
           {codeToEdit.map((code, i) => (
             <CodeToEditListItem
-              key={code.filepath + i}
+              key={code.uri + i}
               code={code}
               onDelete={onDelete}
               onClickFilename={onClickFilename}

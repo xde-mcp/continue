@@ -14,7 +14,7 @@ function FunctionSpecificToolCallDiv({
   switch (toolCall.function.name) {
     case "create_new_file":
       return (
-        <CreateFile filepath={args.filepath} fileContents={args.contents} />
+        <CreateFile fileUri={args.fileUri} fileContents={args.contents} />
       );
     case "run_terminal_command":
       return (

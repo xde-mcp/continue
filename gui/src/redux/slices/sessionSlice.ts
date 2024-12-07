@@ -51,7 +51,7 @@ type SessionState = {
 };
 
 function isCodeToEditEqual(a: CodeToEdit, b: CodeToEdit) {
-  if (a.filepath !== b.filepath || a.contents !== b.contents) {
+  if (a.uri !== b.uri || a.contents !== b.contents) {
     return false;
   }
 
@@ -391,9 +391,7 @@ export const sessionSlice = createSlice({
         return { ...item, editing: false };
       });
 
-      const base = payload.rangeInFileWithContents.filepath
-        .split(/[\\/]/)
-        .pop();
+      const base = payload.rangeInFileWithContents.uri.split(/[\\/]/).pop();
 
       const lineNums = `(${
         payload.rangeInFileWithContents.range.start.line + 1
@@ -401,7 +399,7 @@ export const sessionSlice = createSlice({
 
       contextItems.push({
         name: `${base} ${lineNums}`,
-        description: payload.rangeInFileWithContents.filepath,
+        description: payload.rangeInFileWithContents.uri,
         id: {
           providerTitle: "code",
           itemId: uuidv4(),
@@ -424,9 +422,9 @@ export const sessionSlice = createSlice({
     },
     updateCurCheckpoint: (
       state,
-      { payload }: PayloadAction<{ filepath: string; content: string }>,
+      { payload }: PayloadAction<{ uri: string; content: string }>,
     ) => {
-      state.history[state.curCheckpointIndex].checkpoint[payload.filepath] =
+      state.history[state.curCheckpointIndex].checkpoint[payload.uri] =
         payload.content;
     },
     updateApplyState: (state, { payload }: PayloadAction<ApplyState>) => {
@@ -439,7 +437,7 @@ export const sessionSlice = createSlice({
       } else {
         applyState.status = payload.status ?? applyState.status;
         applyState.numDiffs = payload.numDiffs ?? applyState.numDiffs;
-        applyState.filepath = payload.filepath ?? applyState.filepath;
+        applyState.fileUri = payload.fileUri ?? applyState.fileUri;
       }
 
       if (payload.status === "done") {

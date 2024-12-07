@@ -76,24 +76,24 @@ export const gatherContext = createAsyncThunk<
         }
         if (
           !selectedContextItems.find(
-            (item) => item.uri?.value === currentFile.path,
+            (item) => item.uri?.value === currentFile.uri,
           )
         ) {
           // don't add the file if it's already in the context items
           selectedContextItems.unshift({
             content: `The following file is currently open. Don't reference it if it's not relevant to the user's message.\n\n\`\`\`${getRelativePath(
-              currentFile.path,
+              currentFile.uri,
               await extra.ideMessenger.ide.getWorkspaceDirs(),
             )}\n${currentFileContents}\n\`\`\``,
-            name: `Active file: ${getBasename(currentFile.path)}`,
-            description: currentFile.path,
+            name: `Active file: ${getBasename(currentFile.uri)}`,
+            description: currentFile.uri,
             id: {
-              itemId: currentFile.path,
+              itemId: currentFile.uri,
               providerTitle: "file",
             },
             uri: {
               type: "file",
-              value: currentFile.path,
+              value: currentFile.uri,
             },
           });
         }

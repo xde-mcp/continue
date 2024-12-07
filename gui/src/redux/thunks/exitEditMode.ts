@@ -25,7 +25,7 @@ export const exitEditMode = createAsyncThunk<void, undefined, ThunkApiType>(
 
     for (const code of codeToEdit) {
       extra.ideMessenger.post("rejectDiff", {
-        filepath: code.filepath,
+        fileUri: code.fileUri,
       });
     }
 

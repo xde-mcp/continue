@@ -13,7 +13,7 @@ function FilenameLink({ rif }: FilenameLinkProps) {
 
   function onClick() {
     ideMessenger.post("showLines", {
-      filepath: rif.filepath,
+      fileUri: rif.fileUri,
       startLine: rif.range.start.line,
       endLine: rif.range.end.line,
     });
@@ -24,9 +24,9 @@ function FilenameLink({ rif }: FilenameLinkProps) {
       className="mx-[0.1em] mb-[0.15em] inline-flex cursor-pointer items-center gap-0.5 rounded-md pr-[0.2em] align-middle hover:ring-1"
       onClick={onClick}
     >
-      <FileIcon filename={rif.filepath} height="20px" width="20px" />
+      <FileIcon filename={rif.fileUri} height="20px" width="20px" />
       <span className="align-baseline underline underline-offset-2 mb-0.5">
-        {getBasename(rif.filepath)}
+        {getBasename(rif.fileUri)}
       </span>
     </span>
   );
