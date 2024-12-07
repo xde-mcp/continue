@@ -15,7 +15,7 @@ declare global {
       }[];
     };
     colorThemeName?: string;
-    workspacePaths?: string[];
+    workspaceDirectoryUris?: string[];
     postIntellijMessage?: (
       messageType: string,
       data: any,
@@ -659,7 +659,7 @@ export interface IDE {
     ...otherParams: any[]
   ): Promise<any>;
 
-  getGitRootUri(dir: string): Promise<string | undefined>;
+  getGitRootDirUri(dir: string): Promise<string | undefined>;
 
   listDir(dir: string): Promise<[string, FileType][]>;
 

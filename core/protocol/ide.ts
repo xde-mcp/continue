@@ -24,31 +24,31 @@ export type ToIdeFromWebviewOrCoreProtocol = {
   getIdeInfo: [undefined, IdeInfo];
   getWorkspaceDirs: [undefined, string[]];
   listFolders: [undefined, string[]];
-  writeFile: [{ path: string; contents: string }, void];
+  writeFile: [{ uri: string; contents: string }, void];
   showVirtualFile: [{ name: string; content: string }, void];
   getContinueDir: [undefined, string];
-  openFile: [{ path: string }, void];
+  openFile: [{ uri: string }, void];
   openUrl: [string, void];
   runCommand: [{ command: string }, void];
   getSearchResults: [{ query: string }, string];
   subprocess: [{ command: string; cwd?: string }, [string, string]];
-  saveFile: [{ filepath: string }, void];
-  fileExists: [{ filepath: string }, boolean];
-  readFile: [{ filepath: string }, string];
+  saveFile: [{ uri: string }, void];
+  fileExists: [{ uri: string }, boolean];
+  readFile: [{ uri: string }, string];
   showDiff: [
-    { filepath: string; newContents: string; stepIndex: number },
+    { uri: string; newContents: string; stepIndex: number },
     void,
   ];
   diffLine: [
     {
       diffLine: DiffLine;
-      filepath: string;
+      uri: string;
       startLine: number;
       endLine: number;
     },
     void,
   ];
-  getProblems: [{ filepath: string }, Problem[]];
+  getProblems: [{ uri: string }, Problem[]];
   getOpenFiles: [undefined, string[]];
   getCurrentFile: [
     undefined,
@@ -56,14 +56,14 @@ export type ToIdeFromWebviewOrCoreProtocol = {
       | undefined
       | {
           isUntitled: boolean;
-          path: string;
+          uri: string;
           contents: string;
         }
     ),
   ];
   getPinnedFiles: [undefined, string[]];
-  showLines: [{ filepath: string; startLine: number; endLine: number }, void];
-  readRangeInFile: [{ filepath: string; range: Range }, string];
+  showLines: [{ uri: string; startLine: number; endLine: number }, void];
+  readRangeInFile: [{ uri: string; range: Range }, string];
   getDiff: [{ includeUnstaged: boolean }, string[]];
   getWorkspaceConfigs: [undefined, ContinueRcJson[]];
   getTerminalContents: [undefined, string];
@@ -88,9 +88,9 @@ export type ToIdeFromWebviewOrCoreProtocol = {
     Parameters<IDE["showToast"]>,
     Awaited<ReturnType<IDE["showToast"]>>,
   ];
-  getGitRootPath: [{ dir: string }, string | undefined];
+  getGitRootDirUri: [{ dir: string }, string | undefined];
   listDir: [{ dir: string }, [string, FileType][]];
-  getLastModified: [{ files: string[] }, { [path: string]: number }];
+  getLastModified: [{ files: string[] }, { [uri: string]: number }];
 
   gotoDefinition: [{ location: Location }, RangeInFile[]];
 
@@ -104,7 +104,7 @@ export type ToIdeFromWebviewOrCoreProtocol = {
 };
 
 export type ToWebviewOrCoreFromIdeProtocol = {
-  didChangeActiveTextEditor: [{ filepath: string }, void];
+  didChangeActiveTextEditor: [{ uri: string }, void];
   didChangeControlPlaneSessionInfo: [
     { sessionInfo: ControlPlaneSessionInfo | undefined },
     void,

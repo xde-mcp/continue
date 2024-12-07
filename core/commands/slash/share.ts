@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import { homedir } from "node:os";
 import path from "path";
 
-import { languageForFilepath } from "../../autocomplete/constants/AutocompleteLanguageInfo.js";
+import { languageForFile } from "../../autocomplete/constants/AutocompleteLanguageInfo.js";
 import { SlashCommand } from "../../index.js";
 import { renderChatMessage } from "../../util/messageContent.js";
 
@@ -28,7 +28,7 @@ function reformatCodeBlocks(msgText: string): string {
   msgText = msgText.replace(
     codeBlockFenceRegex,
     (match, metadata, filename, extension) => {
-      const lang = languageForFilepath(filename);
+      const lang = languageForFile(filename);
       return `\`\`\`${extension}\n${lang.singleLineComment} ${metadata}\n`;
     },
   );

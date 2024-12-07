@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import * as path from "node:path";
 
 import Parser, { Language } from "web-tree-sitter";
 import { FileSymbolMap, IDE, SymbolWithRange } from "..";
@@ -116,12 +115,12 @@ export const IGNORE_PATH_PATTERNS: Partial<Record<LanguageName, RegExp[]>> = {
   [LanguageName.JAVASCRIPT]: [/.*node_modules/],
 };
 
-export async function getParserForFile(filepath: string) {
+export async function getParserForFile(uri: string) {
   try {
     await Parser.init();
     const parser = new Parser();
 
-    const language = await getLanguageForFile(filepath);
+    const language = await getLanguageForFile(uri);
     if (!language) {
       return undefined;
     }
@@ -130,7 +129,7 @@ export async function getParserForFile(filepath: string) {
 
     return parser;
   } catch (e) {
-    console.debug("Unable to load language for file", filepath, e);
+    console.debug("Unable to load language for file", uri, e);
     return undefined;
   }
 }
@@ -165,7 +164,7 @@ export async function getLanguageForFile(
 }
 
 export const getFullLanguageName = (filepath: string) => {
-  return supportedLanguages[filepath.split(".").pop() ?? ""];
+  return supportedLanguages[filepath.split(".").pop() ?? ""]; // URI TODO - ensure works with URIs
 };
 
 export async function getQueryForFile(
@@ -260,7 +259,7 @@ export async function getSymbolsForFile(
 
       if (identifier?.text) {
         symbols.push({
-          filepath,
+          uri,
           type: node.type,
           name: identifier.text,
           range: {

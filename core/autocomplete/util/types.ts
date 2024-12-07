@@ -14,7 +14,7 @@ export type RecentlyEditedRange = RangeInFile & {
 
 export interface AutocompleteInput {
   completionId: string;
-  filepath: string;
+  fileUri: string;
   pos: Position;
   recentlyEditedFiles: RangeInFileWithContents[];
   recentlyEditedRanges: RecentlyEditedRange[];
@@ -40,7 +40,7 @@ export interface AutocompleteOutcome extends TabAutocompleteOptions {
   modelName: string;
   completionOptions: any;
   cacheHit: boolean;
-  filepath: string;
+  fileUri: string;
   gitRepo?: string;
   completionId: string;
   uniqueId: string;

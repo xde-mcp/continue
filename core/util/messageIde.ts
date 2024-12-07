@@ -33,14 +33,14 @@ export class MessageIde implements IDE {
   pathSep(): Promise<string> {
     return this.request("pathSep", undefined);
   }
-  fileExists(filepath: string): Promise<boolean> {
-    return this.request("fileExists", { filepath });
+  fileExists(uri: string): Promise<boolean> {
+    return this.request("fileExists", { uri });
   }
   async gotoDefinition(location: Location): Promise<RangeInFile[]> {
     return this.request("gotoDefinition", { location });
   }
-  onDidChangeActiveTextEditor(callback: (filepath: string) => void): void {
-    this.on("didChangeActiveTextEditor", (data) => callback(data.filepath));
+  onDidChangeActiveTextEditor(callback: (uri: string) => void): void {
+    this.on("didChangeActiveTextEditor", (data) => callback(data.uri));
   }
 
   getIdeSettings(): Promise<IdeSettings> {
@@ -49,11 +49,11 @@ export class MessageIde implements IDE {
   getGitHubAuthToken(args: GetGhTokenArgs): Promise<string | undefined> {
     return this.request("getGitHubAuthToken", args);
   }
-  getLastModified(files: string[]): Promise<{ [path: string]: number }> {
+  getLastModified(files: string[]): Promise<{ [uri: string]: number }> {
     return this.request("getLastModified", { files });
   }
-  getGitRootPath(dir: string): Promise<string | undefined> {
-    return this.request("getGitRootPath", { dir });
+  getGitRootDirUri(dir: string): Promise<string | undefined> {
+    return this.request("getGitRootDirUri", { dir });
   }
   listDir(dir: string): Promise<[string, FileType][]> {
     return this.request("listDir", { dir });
@@ -93,8 +93,8 @@ export class MessageIde implements IDE {
     return this.request("getIdeInfo", undefined);
   }
 
-  readRangeInFile(filepath: string, range: Range): Promise<string> {
-    return this.request("readRangeInFile", { filepath, range });
+  readRangeInFile(uri: string, range: Range): Promise<string> {
+    return this.request("readRangeInFile", { uri, range });
   }
 
   isTelemetryEnabled(): Promise<boolean> {
@@ -129,11 +129,11 @@ export class MessageIde implements IDE {
   }
 
   async showLines(
-    filepath: string,
+    uri: string,
     startLine: number,
     endLine: number,
   ): Promise<void> {
-    return await this.request("showLines", { filepath, startLine, endLine });
+    return await this.request("showLines", { uri, startLine, endLine });
   }
 
   async listFolders(): Promise<string[]> {
@@ -151,16 +151,16 @@ export class MessageIde implements IDE {
     return dir;
   }
 
-  async writeFile(path: string, contents: string): Promise<void> {
-    await this.request("writeFile", { path, contents });
+  async writeFile(uri: string, contents: string): Promise<void> {
+    await this.request("writeFile", { uri, contents });
   }
 
   async showVirtualFile(title: string, contents: string): Promise<void> {
     await this.request("showVirtualFile", { name: title, content: contents });
   }
 
-  async openFile(path: string): Promise<void> {
-    await this.request("openFile", { path });
+  async openFile(uri: string): Promise<void> {
+    await this.request("openFile", { uri });
   }
 
   async openUrl(url: string): Promise<void> {
@@ -171,18 +171,18 @@ export class MessageIde implements IDE {
     await this.request("runCommand", { command });
   }
 
-  async saveFile(filepath: string): Promise<void> {
-    await this.request("saveFile", { filepath });
+  async saveFile(uri: string): Promise<void> {
+    await this.request("saveFile", { uri });
   }
-  async readFile(filepath: string): Promise<string> {
-    return await this.request("readFile", { filepath });
+  async readFile(uri: string): Promise<string> {
+    return await this.request("readFile", { uri });
   }
   async showDiff(
-    filepath: string,
+    uri: string,
     newContents: string,
     stepIndex: number,
   ): Promise<void> {
-    await this.request("showDiff", { filepath, newContents, stepIndex });
+    await this.request("showDiff", { uri, newContents, stepIndex });
   }
 
   getOpenFiles(): Promise<string[]> {
@@ -201,8 +201,8 @@ export class MessageIde implements IDE {
     return this.request("getSearchResults", { query });
   }
 
-  getProblems(filepath: string): Promise<Problem[]> {
-    return this.request("getProblems", { filepath });
+  getProblems(uri: string): Promise<Problem[]> {
+    return this.request("getProblems", { uri });
   }
 
   subprocess(command: string, cwd?: string): Promise<[string, string]> {

@@ -6,7 +6,7 @@ import {
 } from "../../llm/countTokens";
 import {
   AutocompleteLanguageInfo,
-  languageForFilepath,
+  languageForFile,
 } from "../constants/AutocompleteLanguageInfo";
 import { constructInitialPrefixSuffix } from "../templating/constructPrefixSuffix";
 
@@ -34,7 +34,7 @@ export class HelperVars {
     public readonly modelName: string,
     private readonly ide: IDE,
   ) {
-    this.lang = languageForFilepath(input.filepath);
+    this.lang = languageForFile(input.fileUri);
   }
 
   private async init() {
@@ -45,7 +45,7 @@ export class HelperVars {
 
     this._fileContents =
       this.input.manuallyPassFileContents ??
-      (await this.ide.readFile(this.filepath));
+      (await this.ide.readFile(this.fileUri));
 
     this._fileLines = this._fileContents.split("\n");
 
@@ -60,7 +60,7 @@ export class HelperVars {
     this._prunedSuffix = prunedSuffix;
 
     try {
-      const ast = await getAst(this.filepath, fullPrefix + fullSuffix);
+      const ast = await getAst(this.fileUri, fullPrefix + fullSuffix);
       if (ast) {
         this.treePath = await getTreePathAtCursor(ast, fullPrefix.length);
       }
@@ -108,8 +108,8 @@ export class HelperVars {
   }
 
   // Fast access
-  get filepath() {
-    return this.input.filepath;
+  get fileUri() {
+    return this.input.fileUri;
   }
   get pos() {
     return this.input.pos;

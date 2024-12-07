@@ -29,7 +29,7 @@ export class ContextRetrievalService {
     }
 
     const importSnippets: AutocompleteCodeSnippet[] = [];
-    const fileInfo = this.importDefinitionsService.get(helper.filepath);
+    const fileInfo = this.importDefinitionsService.get(helper.fileUri);
     if (fileInfo) {
       const { imports } = fileInfo;
       // Look for imports of any symbols around the current range
@@ -44,7 +44,7 @@ export class ContextRetrievalService {
         if (Array.isArray(rifs)) {
           const snippets: AutocompleteCodeSnippet[] = rifs.map((rif) => {
             return {
-              filepath: rif.filepath,
+              fileUri: rif.uri,
               content: rif.contents,
               type: AutocompleteSnippetType.Code,
             };
@@ -66,7 +66,7 @@ export class ContextRetrievalService {
     }
 
     return this.rootPathContextService.getContextForPath(
-      helper.filepath,
+      helper.fileUri,
       helper.treePath,
     );
   }

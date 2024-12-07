@@ -6,7 +6,7 @@ import { devDataPath } from "core/util/paths";
 import * as vscode from "vscode";
 
 import { getMetaKeyLabel, getPlatform } from "../util/util";
-import { uriFromFilePath } from "../util/vscode";
+// import { uriFromFilePath } from "../util/vscode";
 
 import type { VsCodeWebviewProtocol } from "../webviewProtocol";
 
@@ -18,9 +18,9 @@ interface DiffInfo {
   range: vscode.Range;
 }
 
-async function readFile(path: string): Promise<string> {
+async function readFile(uri: string): Promise<string> {
   return await vscode.workspace.fs
-    .readFile(uriFromFilePath(path))
+    .readFile(uri)
     .then((bytes) => new TextDecoder().decode(bytes));
 }
 
@@ -38,7 +38,7 @@ export class DiffManager {
   // Doing this because virtual files are read-only
   private diffs: Map<string, DiffInfo> = new Map();
 
-  diffAtNewFilepath(newFilepath: string): DiffInfo | undefined {
+  diffAtNewFilepath(newFileUri: vscode.Uri): DiffInfo | undefined {
     return this.diffs.get(newFilepath);
   }
 

@@ -10,7 +10,7 @@ interface BaseAutocompleteSnippet {
 }
 
 export interface AutocompleteCodeSnippet extends BaseAutocompleteSnippet {
-  filepath: string;
+  fileUri: string;
   type: AutocompleteSnippetType.Code;
 }
 

@@ -1,6 +1,6 @@
 import { IDE } from "../..";
 import { getRangeInString } from "../../util/ranges";
-import { languageForFilepath } from "../constants/AutocompleteLanguageInfo";
+import { languageForFile } from "../constants/AutocompleteLanguageInfo";
 import { AutocompleteInput } from "../util/types";
 
 /**
@@ -14,7 +14,7 @@ export async function constructInitialPrefixSuffix(
   prefix: string;
   suffix: string;
 }> {
-  const lang = languageForFilepath(input.filepath);
+  const lang = languageForFile(input.filepath);
 
   const fileContents =
     input.manuallyPassFileContents ?? (await ide.readFile(input.filepath));

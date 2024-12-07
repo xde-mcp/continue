@@ -67,7 +67,7 @@ class FileSystemIde implements IDE {
     }
     return result;
   }
-  getGitRootPath(dir: string): Promise<string | undefined> {
+  getGitRootDirUri(dir: string): Promise<string | undefined> {
     return Promise.resolve(dir);
   }
   async listDir(dir: string): Promise<[string, FileType][]> {

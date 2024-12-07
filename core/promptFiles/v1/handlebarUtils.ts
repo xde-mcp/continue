@@ -70,7 +70,7 @@ export function registerHelpers(
 
 export async function prepareTemplateAndData(
   template: string,
-  readFile: (filepath: string) => Promise<string>,
+  readFile: (uri: string) => Promise<string>,
   inputData: Record<string, string>,
   ctxProviderNames: string[],
 ): Promise<[string, any]> {
@@ -95,7 +95,10 @@ export async function prepareTemplateAndData(
   return [newTemplate, data];
 }
 
-export function compileAndRenderTemplate(template: string, data: Record<string, string>): string {
+export function compileAndRenderTemplate(
+  template: string,
+  data: Record<string, string>,
+): string {
   const templateFn = Handlebars.compile(template);
   return templateFn(data);
 }

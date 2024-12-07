@@ -414,7 +414,7 @@ class IdeProtocolClient(
                         respond(files)
                     }
 
-                    "getGitRootPath" -> {
+                    "getGitRootDirUri" -> {
                         val data = data as Map<String, Any>
                         val directory = data["dir"] as String
                         val builder = ProcessBuilder("git", "rev-parse", "--show-toplevel")

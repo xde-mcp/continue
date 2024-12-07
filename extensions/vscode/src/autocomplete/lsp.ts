@@ -9,10 +9,7 @@ import * as vscode from "vscode";
 
 import type { IDE, Range, RangeInFile, RangeInFileWithContents } from "core";
 import type Parser from "web-tree-sitter";
-import {
-  AutocompleteSnippetDeprecated,
-  GetLspDefinitionsFunction,
-} from "core/autocomplete/types";
+import { GetLspDefinitionsFunction } from "core/autocomplete/types";
 import {
   AutocompleteCodeSnippet,
   AutocompleteSnippetType,
@@ -57,7 +54,7 @@ export async function executeGotoProvider(
     const results = definitions
       .filter((d: any) => (d.targetUri || d.uri) && (d.targetRange || d.range))
       .map((d: any) => ({
-        filepath: (d.targetUri || d.uri).fsPath,
+        uri: (d.targetUri || d.uri).toString(),
         range: d.targetRange || d.range,
       }));
 
@@ -135,10 +132,10 @@ async function crawlTypes(
   // Get the file contents if not already attached
   const contents = isRifWithContents(rif)
     ? rif.contents
-    : await ide.readFile(rif.filepath);
+    : await ide.readFile(rif.uri);
 
   // Parse AST
-  const ast = await getAst(rif.filepath, contents);
+  const ast = await getAst(rif.uri, contents);
   if (!ast) {
     return results;
   }
@@ -156,7 +153,7 @@ async function crawlTypes(
   const definitions = await Promise.all(
     identifierNodes.map(async (node) => {
       const [typeDef] = await executeGotoProvider({
-        uri: rif.filepath,
+        uri: rif.uri,
         // TODO: tree-sitter is zero-indexed, but there seems to be an off-by-one
         // error at least with the .ts parser sometimes
         line:
@@ -171,7 +168,7 @@ async function crawlTypes(
       }
       return {
         ...typeDef,
-        contents: await ide.readRangeInFile(typeDef.filepath, typeDef.range),
+        contents: await ide.readRangeInFile(typeDef.uri, typeDef.range),
       };
     }),
   );
@@ -184,7 +181,7 @@ async function crawlTypes(
       !definition ||
       results.some(
         (result) =>
-          result.filepath === definition.filepath &&
+          result.uri === definition.uri &&
           intersection(result.range, definition.range) !== null,
       )
     ) {
@@ -225,10 +222,10 @@ export async function getDefinitionsForNode(
 
       // Don't display a function of more than 15 lines
       // We can of course do something smarter here eventually
-      let funcText = await ide.readRangeInFile(funDef.filepath, funDef.range);
+      let funcText = await ide.readRangeInFile(funDef.uri, funDef.range);
       if (funcText.split("\n").length > 15) {
         let truncated = false;
-        const funRootAst = await getAst(funDef.filepath, funcText);
+        const funRootAst = await getAst(funDef.uri, funcText);
         if (funRootAst) {
           const [funNode] = findChildren(
             funRootAst?.rootNode,
@@ -287,10 +284,7 @@ export async function getDefinitionsForNode(
       if (!classDef) {
         break;
       }
-      const contents = await ide.readRangeInFile(
-        classDef.filepath,
-        classDef.range,
-      );
+      const contents = await ide.readRangeInFile(classDef.uri, classDef.range);
 
       ranges.push({
         ...classDef,
@@ -327,7 +321,7 @@ export async function getDefinitionsForNode(
       if (!isRifWithContents(rif)) {
         return {
           ...rif,
-          contents: await ide.readRangeInFile(rif.filepath, rif.range),
+          contents: await ide.readRangeInFile(rif.uri, rif.range),
         };
       }
       return rif;
@@ -342,14 +336,14 @@ export async function getDefinitionsForNode(
  */
 
 export const getDefinitionsFromLsp: GetLspDefinitionsFunction = async (
-  filepath: string,
+  fileUri: string,
   contents: string,
   cursorIndex: number,
   ide: IDE,
   lang: AutocompleteLanguageInfo,
 ): Promise<AutocompleteCodeSnippet[]> => {
   try {
-    const ast = await getAst(filepath, contents);
+    const ast = await getAst(fileUri, contents);
     if (!ast) {
       return [];
     }
@@ -361,17 +355,12 @@ export const getDefinitionsFromLsp: GetLspDefinitionsFunction = async (
 
     const results: RangeInFileWithContents[] = [];
     for (const node of treePath.reverse()) {
-      const definitions = await getDefinitionsForNode(
-        filepath,
-        node,
-        ide,
-        lang,
-      );
+      const definitions = await getDefinitionsForNode(fileUri, node, ide, lang);
       results.push(...definitions);
     }
 
     return results.map((result) => ({
-      filepath: result.filepath,
+      fileUri: result.uri,
       content: result.contents,
       type: AutocompleteSnippetType.Code,
     }));

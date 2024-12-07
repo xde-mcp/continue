@@ -45,7 +45,7 @@ export class LanceDbIndex implements CodebaseIndex {
 
   constructor(
     private readonly embeddingsProvider: EmbeddingsProvider,
-    private readonly readFile: (filepath: string) => Promise<string>,
+    private readonly readFile: (uri: string) => Promise<string>,
     private readonly pathSep: string,
     private readonly continueServerClient?: IContinueServerClient,
   ) {}
@@ -102,7 +102,7 @@ export class LanceDbIndex implements CodebaseIndex {
     for (let i = embeddings.length - 1; i >= 0; i--) {
       if (embeddings[i] === undefined) {
         const chunk = allChunks[i];
-        const chunks = chunkMap.get(chunk.filepath)?.chunks;
+        const chunks = chunkMap.get(chunk.fileUri)?.chunks;
 
         if (chunks) {
           const index = chunks.findIndex((c) => c === chunk);
@@ -466,7 +466,7 @@ export class LanceDbIndex implements CodebaseIndex {
     return data.map((d) => {
       return {
         digest: d.cacheKey,
-        filepath: d.path,
+        fileUri: d.path,
         startLine: d.startLine,
         endLine: d.endLine,
         index: 0,

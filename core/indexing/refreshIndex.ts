@@ -130,7 +130,7 @@ enum AddRemoveResultType {
 async function getAddRemoveForTag(
   tag: IndexTag,
   currentFiles: LastModifiedMap,
-  readFile: (path: string) => Promise<string>,
+  readFile: (uri: string) => Promise<string>,
 ): Promise<
   [
     PathAndCacheKey[],
@@ -346,7 +346,7 @@ function mapIndexResultTypeToAddRemoveResultType(
 export async function getComputeDeleteAddRemove(
   tag: IndexTag,
   currentFiles: LastModifiedMap,
-  readFile: (path: string) => Promise<string>,
+  readFile: (uri: string) => Promise<string>,
   repoName: string | undefined,
 ): Promise<[RefreshIndexResults, PathAndCacheKey[], MarkCompleteCallback]> {
   const [add, remove, lastUpdated, markComplete] = await getAddRemoveForTag(

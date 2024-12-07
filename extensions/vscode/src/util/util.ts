@@ -1,8 +1,5 @@
 import * as vscode from "vscode";
-
-import { VsCodeIde } from "../VsCodeIde";
-
-const os = require("node:os");
+import os from "node:os";
 
 function charIsEscapedAtIndex(index: number, str: string): boolean {
   if (index === 0) {
@@ -125,12 +122,12 @@ export function getExtensionVersion(): string {
   return extension?.packageJSON.version || "0.1.0";
 }
 
-export function getFullyQualifiedPath(ide: VsCodeIde, filepath: string) {
-  if (ide.ideUtils.path.isAbsolute(filepath)) {return filepath;}
+// export function getFullyQualifiedPath(ide: VsCodeIde, filepath: string) {
+//   if (ide.ideUtils.path.isAbsolute(filepath)) {return filepath;}
 
-  const workspaceFolders = vscode.workspace.workspaceFolders;
+//   const workspaceFolders = vscode.workspace.workspaceFolders;
 
-  if (workspaceFolders && workspaceFolders.length > 0) {
-    return ide.ideUtils.path.join(workspaceFolders[0].uri.fsPath, filepath);
-  }
-}
+//   if (workspaceFolders && workspaceFolders.length > 0) {
+//     return ide.ideUtils.path.join(workspaceFolders[0].uri.fsPath, filepath);
+//   }
+// }

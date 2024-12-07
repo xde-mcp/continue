@@ -1,6 +1,5 @@
 import * as child_process from "node:child_process";
 import { exec } from "node:child_process";
-import * as path from "node:path";
 
 import { Range } from "core";
 import { EXTENSION_NAME } from "core/control-plane/env";
@@ -17,11 +16,7 @@ import { executeGotoProvider } from "./autocomplete/lsp";
 import { DiffManager } from "./diff/horizontal";
 import { Repository } from "./otherExtensions/git";
 import { VsCodeIdeUtils } from "./util/ideUtils";
-import {
-  getExtensionUri,
-  openEditorAndRevealRange,
-  uriFromFilePath,
-} from "./util/vscode";
+import { getExtensionUri, openEditorAndRevealRange } from "./util/vscode";
 import { VsCodeWebviewProtocol } from "./webviewProtocol";
 
 import type {
@@ -48,12 +43,8 @@ class VsCodeIde implements IDE {
     this.ideUtils = new VsCodeIdeUtils();
   }
 
-  pathSep(): Promise<string> {
-    return Promise.resolve(this.ideUtils.path.sep);
-  }
-  async fileExists(filepath: string): Promise<boolean> {
-    const absPath = await this.ideUtils.resolveAbsFilepathInWorkspace(filepath);
-    return vscode.workspace.fs.stat(uriFromFilePath(absPath)).then(
+  async fileExists(uri: string): Promise<boolean> {
+    return vscode.workspace.fs.stat(vscode.Uri.parse(uri)).then(
       () => true,
       () => false,
     );
@@ -61,7 +52,7 @@ class VsCodeIde implements IDE {
 
   async gotoDefinition(location: Location): Promise<RangeInFile[]> {
     const result = await executeGotoProvider({
-      uri: location.filepath,
+      uri: location.uri,
       line: location.position.line,
       character: location.position.character,
       name: "vscode.executeDefinitionProvider",
@@ -272,9 +263,9 @@ class VsCodeIde implements IDE {
     });
   }
 
-  readRangeInFile(filepath: string, range: Range): Promise<string> {
+  readRangeInFile(uri: string, range: Range): Promise<string> {
     return this.ideUtils.readRangeInFile(
-      filepath,
+      uri,
       new vscode.Range(
         new vscode.Position(range.start.line, range.start.character),
         new vscode.Position(range.end.line, range.end.character),
@@ -571,16 +562,16 @@ class VsCodeIde implements IDE {
     return results.join("\n\n");
   }
 
-  async getProblems(filepath?: string | undefined): Promise<Problem[]> {
-    const uri = filepath
-      ? vscode.Uri.file(filepath)
+  async getProblems(fileUri?: string | undefined): Promise<Problem[]> {
+    const uri = fileUri
+      ? vscode.Uri.parse(fileUri)
       : vscode.window.activeTextEditor?.document.uri;
     if (!uri) {
       return [];
     }
     return vscode.languages.getDiagnostics(uri).map((d) => {
       return {
-        filepath: uri.fsPath,
+        uri: uri.toString(),
         range: {
           start: {
             line: d.range.start.line,
@@ -609,12 +600,12 @@ class VsCodeIde implements IDE {
     return this.ideUtils.getBranch(vscode.Uri.file(dir));
   }
 
-  getGitRootPath(dir: string): Promise<string | undefined> {
+  getGitRootDirUri(dir: string): Promise<string | undefined> {
     return this.ideUtils.getGitRoot(dir);
   }
 
   async listDir(dir: string): Promise<[string, FileType][]> {
-    return vscode.workspace.fs.readDirectory(uriFromFilePath(dir)) as any;
+    return vscode.workspace.fs.readDirectory(vscode.Uri.parse(dir)) as any;
   }
 
   getIdeSettingsSync(): IdeSettings {

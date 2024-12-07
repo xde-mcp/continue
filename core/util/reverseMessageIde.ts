@@ -42,8 +42,8 @@ export class ReverseMessageIde {
       return this.ide.getLastModified(data.files);
     });
 
-    this.on("getGitRootPath", (data) => {
-      return this.ide.getGitRootPath(data.dir);
+    this.on("getGitRootDirUri", (data) => {
+      return this.ide.getGitRootDirUri(data.dir);
     });
 
     this.on("listDir", (data) => {
@@ -82,7 +82,7 @@ export class ReverseMessageIde {
     });
 
     this.on("readRangeInFile", (data) => {
-      return this.ide.readRangeInFile(data.filepath, data.range);
+      return this.ide.readRangeInFile(data.uri, data.range);
     });
 
     this.on("isTelemetryEnabled", () => {
@@ -114,7 +114,7 @@ export class ReverseMessageIde {
     });
 
     this.on("showLines", (data) => {
-      return this.ide.showLines(data.filepath, data.startLine, data.endLine);
+      return this.ide.showLines(data.uri, data.startLine, data.endLine);
     });
 
     this.on("listFolders", () => {
@@ -131,11 +131,11 @@ export class ReverseMessageIde {
     });
 
     this.on("writeFile", (data) => {
-      return this.ide.writeFile(data.path, data.contents);
+      return this.ide.writeFile(data.uri, data.contents);
     });
 
     this.on("fileExists", (data) => {
-      return this.ide.fileExists(data.filepath);
+      return this.ide.fileExists(data.uri);
     });
 
     this.on("showVirtualFile", (data) => {
@@ -143,7 +143,7 @@ export class ReverseMessageIde {
     });
 
     this.on("openFile", (data) => {
-      return this.ide.openFile(data.path);
+      return this.ide.openFile(data.uri);
     });
 
     this.on("runCommand", (data) => {
@@ -151,15 +151,15 @@ export class ReverseMessageIde {
     });
 
     this.on("saveFile", (data) => {
-      return this.ide.saveFile(data.filepath);
+      return this.ide.saveFile(data.uri);
     });
 
     this.on("readFile", (data) => {
-      return this.ide.readFile(data.filepath);
+      return this.ide.readFile(data.uri);
     });
 
     this.on("showDiff", (data) => {
-      return this.ide.showDiff(data.filepath, data.newContents, data.stepIndex);
+      return this.ide.showDiff(data.uri, data.newContents, data.stepIndex);
     });
 
     this.on("getOpenFiles", () => {
@@ -179,7 +179,7 @@ export class ReverseMessageIde {
     });
 
     this.on("getProblems", (data) => {
-      return this.ide.getProblems(data.filepath);
+      return this.ide.getProblems(data.uri);
     });
 
     this.on("subprocess", (data) => {

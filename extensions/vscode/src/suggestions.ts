@@ -299,7 +299,7 @@ export async function rejectSuggestionCommand(
 }
 
 export async function showSuggestion(
-  editorFilename: string,
+  uri: vscode.Uri,
   range: vscode.Range,
   suggestion: string,
 ): Promise<boolean> {

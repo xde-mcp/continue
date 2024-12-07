@@ -100,7 +100,7 @@ const LLMs = [
 
 export async function llmFromDescription(
   desc: ModelDescription,
-  readFile: (filepath: string) => Promise<string>,
+  readFile: (uri: string) => Promise<string>,
   uniqueId: string,
   ideSettings: IdeSettings,
   writeLog: (log: string) => Promise<void>,

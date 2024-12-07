@@ -1,5 +1,5 @@
 import { Chunk, IDE } from "core";
-import { languageForFilepath } from "core/autocomplete/constants/AutocompleteLanguageInfo";
+import { languageForFile } from "core/autocomplete/constants/AutocompleteLanguageInfo";
 import { DEFAULT_IGNORE_DIRS } from "core/indexing/ignore";
 import { deduplicateArray } from "core/util";
 import { getParserForFile } from "core/util/treeSitter";
@@ -9,17 +9,17 @@ import { getDefinitionsForNode } from "../autocomplete/lsp";
 import type { SyntaxNode } from "web-tree-sitter";
 
 export async function expandSnippet(
-  filepath: string,
+  fileUri: string,
   startLine: number,
   endLine: number,
   ide: IDE,
 ): Promise<Chunk[]> {
-  const parser = await getParserForFile(filepath);
+  const parser = await getParserForFile(fileUri);
   if (!parser) {
     return [];
   }
 
-  const fullFileContents = await ide.readFile(filepath);
+  const fullFileContents = await ide.readFile(fileUri);
   const root: SyntaxNode = parser.parse(fullFileContents).rootNode;
 
   // Find all nodes contained in the range
@@ -53,10 +53,10 @@ export async function expandSnippet(
     await Promise.all(
       callExpressions.map(async (node) => {
         return getDefinitionsForNode(
-          filepath,
+          fileUri,
           node,
           ide,
-          languageForFilepath(filepath),
+          languageForFile(fileUri),
         );
       }),
     )
@@ -67,7 +67,7 @@ export async function expandSnippet(
     callExpressionDefinitions,
     (a, b) => {
       return (
-        a.filepath === b.filepath &&
+        a.uri === b.uri &&
         a.range.start.line === b.range.start.line &&
         a.range.end.line === b.range.end.line &&
         a.range.start.character === b.range.start.character &&
@@ -79,7 +79,7 @@ export async function expandSnippet(
   // Filter out definitions already in selected range
   callExpressionDefinitions = callExpressionDefinitions.filter((def) => {
     return !(
-      def.filepath === filepath &&
+      def.uri === fileUri &&
       def.range.start.line >= startLine &&
       def.range.end.line <= endLine
     );
@@ -89,11 +89,9 @@ export async function expandSnippet(
   const workspaceDirectories = await ide.getWorkspaceDirs();
   callExpressionDefinitions = callExpressionDefinitions.filter((def) => {
     return (
-      workspaceDirectories.some((dir) => def.filepath.startsWith(dir)) &&
+      workspaceDirectories.some((dir) => def.uri.startsWith(dir)) &&
       !DEFAULT_IGNORE_DIRS.some(
-        (dir) =>
-          def.filepath.includes(`/${dir}/`) ||
-          def.filepath.includes(`\\${dir}\\`),
+        (dir) => def.uri.includes(`/${dir}/`) || def.uri.includes(`\\${dir}\\`),
       )
     );
   });
@@ -101,12 +99,12 @@ export async function expandSnippet(
   const chunks = await Promise.all(
     callExpressionDefinitions.map(async (def) => {
       return {
-        filepath: def.filepath,
+        fileUri: def.uri,
         startLine: def.range.start.line,
         endLine: def.range.end.line,
         digest: "",
         index: 0,
-        content: await ide.readRangeInFile(def.filepath, def.range),
+        content: await ide.readRangeInFile(def.uri, def.range),
       };
     }),
   );
