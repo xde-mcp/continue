@@ -1,79 +1,154 @@
-export type UseCase = "chat" | "autocomplete" | "rerank" | "embed";
+import z from "zod";
 
-export type ParameterType = "string" | "number" | "boolean";
+export const modelCreatorSchema = z.object({
+  displayName: z.string(),
+  description: z.string().optional(),
+  homeUrl: z.string().url().optional(),
+  docsUrl: z.string().url().optional(),
+  extensionIconPath: z.string(), // for icons stored in extension resources
+  remoteIconUrl: z.string().url().optional(), // Backup if no icon in resources
+});
+export type ModelCreator = z.infer<typeof modelCreatorSchema>;
 
-export interface Parameter {
-  key: string;
-  required: boolean;
-  valueType: ParameterType;
-  displayName?: string;
-  description?: string;
-  defaultValue?: any;
-}
+// TODO ///////////////////////////////////////////////////
+// Duplicates of in config-yaml package
+///////////////////////////////////////////////////////////
+export const clientCertificateOptionsSchema = z.object({
+  cert: z.string(),
+  key: z.string(),
+  passphrase: z.string().optional(),
+});
+export type ClientCertificateOptions = z.infer<
+  typeof clientCertificateOptionsSchema
+>;
+export const requestOptionsSchema = z.object({
+  timeout: z.number().optional(),
+  verifySsl: z.boolean().optional(),
+  caBundlePath: z.union([z.string(), z.array(z.string())]).optional(),
+  proxy: z.string().optional(),
+  headers: z.record(z.string()).optional(),
+  extraBodyProperties: z.record(z.any()).optional(),
+  noProxy: z.array(z.string()).optional(),
+  clientCertificate: clientCertificateOptionsSchema.optional(),
+});
+export type RequestOptions = z.infer<typeof requestOptionsSchema>;
+export const modelRolesSchema = z.enum([
+  "chat",
+  "autocomplete",
+  "embed",
+  "rerank",
+  "edit",
+  "apply",
+  "summarize",
+]);
+export type ModelRole = z.infer<typeof modelRolesSchema>;
 
-export enum ChatTemplate {
-  None = "none",
-  // TODO
-}
+export const completionOptionsSchema = z.object({
+  contextLength: z.number().optional(),
+  maxTokens: z.number().optional(),
+  temperature: z.number().optional(),
+  topP: z.number().optional(),
+  topK: z.number().optional(),
+  stop: z.array(z.string()).optional(),
+  n: z.number().optional(),
+});
+export type CompletionOptions = z.infer<typeof completionOptionsSchema>;
 
-export interface LlmInfo {
-  model: string;
-  // providers: string[]; // TODO: uncomment and deal with the consequences
-  displayName?: string;
-  description?: string;
-  contextLength?: number;
-  maxCompletionTokens?: number;
-  regex?: RegExp;
-  chatTemplate?: ChatTemplate;
+// export const modelSchema = z.object({
+//   name: z.string(),
+//   provider: z.string(),
+//   model: z.string(),
+//   roles: modelRolesSchema.array().optional(),
+//   defaultCompletionOptions: completionOptionsSchema.optional(),
+//   requestOptions: requestOptionsSchema.optional(),
+// });
 
-  /** If not set, assumes "text" only */
-  mediaTypes?: MediaType[];
-  recommendedFor?: UseCase[];
+// export type ModelConfig = z.infer<typeof modelSchema>;
+///////////////////////////////////////////////////////////
 
-  /** Any additional parameters required to configure the model */
-  extraParameters?: Parameter[];
-}
+// Parameters that
+export const llmApiSupportSchema = z.object({
+  supportsStreaming: z.boolean().optional(),
 
-export type LlmInfoWithProvider = LlmInfo & {
-  provider: string;
-};
+  supportsPrediction: z.boolean().optional(),
+  supportsPrefill: z.boolean().optional(),
+  supportsCompletions: z.boolean().optional(),
 
-export enum MediaType {
-  Text = "text",
-  Image = "image",
-  Audio = "audio",
-  Video = "video",
-}
+  supportsTextInput: z.boolean().optional(),
+  supportsTextOutput: z.boolean().optional(),
+  supportsVideoInput: z.boolean().optional(),
+  supportsVideoOutput: z.boolean().optional(),
+  supportsAudioInput: z.boolean().optional(),
+  supportsAudioOutput: z.boolean().optional(),
+  supportsImageInput: z.boolean().optional(),
+  supportsImageOutput: z.boolean().optional(),
+  supportsTools: z.boolean().optional(),
 
-export const AllMediaTypes = [
-  MediaType.Text,
-  MediaType.Image,
-  MediaType.Audio,
-  MediaType.Video,
-];
+  extensionIconPath: z.string(), // for icons stored in extension resources
+  remoteIconUrl: z.string().url().optional(), // Backup if no icon in resources
+});
+export type LLMApiSupport = z.infer<typeof llmApiSupportSchema>;
 
-export interface ApiProviderInfo {
-  displayName: string;
-  supportsStreaming: boolean;
-  handlesTemplating: boolean;
-}
+export const llmInfoSchema = llmApiSupportSchema.extend({
+  displayName: z.string().optional(),
+  description: z.string().optional(),
+  creator: modelCreatorSchema.optional(),
 
-export type ModelProviderCapability =
-  | "stream"
-  | "fim"
-  | "image"
-  | "template_chat"
-  | "tools";
+  //
+  homeUrl: z.string().url().optional(),
+  docsUrl: z.string().url().optional(),
+  downloadUrl: z.string().optional(),
+  isFree: z.boolean().optional(),
+  isOpenSource: z.boolean().optional(),
+  supportsFim: z.boolean().optional(),
+  isReasoningModel: z.boolean().optional(),
+  isReasoningExposed: z.boolean().optional(),
 
-export interface ModelProvider {
-  id: string;
-  displayName: string;
-  // capabilities: ModelProviderCapability[]; // TODO: uncomment and deal with the consequences
-  models: Omit<LlmInfo, "provider">[];
+  recommendedRoles: modelRolesSchema.array(),
 
-  /** Any additional parameters required to configure the model
-   *
-   * (other than apiKey, apiBase, which are assumed always. And of course model and provider always required)
-   */
-  extraParameters?: Parameter[];
-}
+  //
+  contextLength: z.number(),
+  defaultCompletionOptions: completionOptionsSchema.optional(),
+  defaultRequestOptions: requestOptionsSchema.optional(),
+
+  // defaultTemplates: {
+  //   chat: ChatTemplate,
+  //   edit: EditTemplate,
+  //   autocomplete: AutocompleteTemplate
+  // },
+  // cacheBehavior:
+  // systemMessage: Optional system message in all three
+});
+export type LLMSpec = z.infer<typeof llmInfoSchema>;
+
+// Model hosted by Provider
+const providerLlmSchema = llmInfoSchema.extend({
+  model: z.string(), // The name passed to the provider's API as "model"
+});
+export type ProviderModel = z.infer<typeof providerLlmSchema>;
+
+export const llmProviderSchema = z.object({
+  id: z.string(),
+  displayName: z.string(),
+  description: z.string(),
+  longDescription: z.string().optional(),
+  dashboardUrl: z.string().url().optional(),
+  apiKeyUrl: z.string().url().optional(),
+  docsUrl: z.string().url().optional(),
+
+  defaultApiBaseUrl: z.string().url().optional(),
+
+  // MODELS!!!
+  models: z.array(providerLlmSchema),
+
+  // Support unique to providers
+  isOpenAICompatible: z.boolean().optional(),
+  handlesTemplating: z.boolean().optional(),
+  noApiKey: z.boolean().optional(),
+  isLocal: z.boolean().optional(),
+  supportsParallelGeneration: z.boolean().optional(),
+
+  extensionIconPath: z.string(), // for icons stored in extension resources
+  remoteIconUrl: z.string().url().optional(), // Backup if no icon in resources
+});
+export type ModelProvider = z.infer<typeof llmProviderSchema>;
