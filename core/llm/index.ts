@@ -1,5 +1,5 @@
 import { fetchwithRequestOptions } from "@continuedev/fetch";
-import { findLlmInfo } from "@continuedev/llm-info";
+import { findProviderLlmSpec } from "@continuedev/llm-info";
 import {
   BaseLlmApi,
   ChatCompletionCreateParams,
@@ -153,7 +153,7 @@ export abstract class BaseLLM implements ILLM {
 
     this.model = options.model;
     // Use @continuedev/llm-info package to autodetect certain parameters
-    const llmInfo = findLlmInfo(this.model);
+    const llmInfo = findProviderLlmSpec(this.providerName, this.model);
 
     const templateType =
       options.template ?? autodetectTemplateType(options.model);
@@ -169,9 +169,9 @@ export abstract class BaseLLM implements ILLM {
       model: options.model || "gpt-4",
       maxTokens:
         options.completionOptions?.maxTokens ??
-        (llmInfo?.maxCompletionTokens
+        (llmInfo?.defaultCompletionOptions?.maxTokens
           ? Math.min(
-              llmInfo.maxCompletionTokens,
+              llmInfo.defaultCompletionOptions.maxTokens,
               // Even if the model has a large maxTokens, we don't want to use that every time,
               // because it takes away from the context length
               this.contextLength / 4,

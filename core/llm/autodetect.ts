@@ -1,4 +1,5 @@
 import { ModelCapability, TemplateType } from "../index.js";
+import {} from "@continuedev/llm-info";
 
 import {
   anthropicTemplateMessages,
@@ -36,55 +37,6 @@ import {
   zephyrEditPrompt,
 } from "./templates/edit.js";
 
-const PROVIDER_HANDLES_TEMPLATING: string[] = [
-  "lmstudio",
-  "openai",
-  "ollama",
-  "together",
-  "msty",
-  "anthropic",
-  "bedrock",
-  "sagemaker",
-  "continue-proxy",
-  "mistral",
-  "sambanova",
-  "vertexai",
-  "watsonx",
-];
-
-const PROVIDER_SUPPORTS_IMAGES: string[] = [
-  "openai",
-  "ollama",
-  "gemini",
-  "free-trial",
-  "msty",
-  "anthropic",
-  "bedrock",
-  "sagemaker",
-  "continue-proxy",
-  "openrouter",
-  "vertexai",
-  "azure",
-  "scaleway",
-];
-
-const MODEL_SUPPORTS_IMAGES: string[] = [
-  "llava",
-  "gpt-4-turbo",
-  "gpt-4o",
-  "gpt-4o-mini",
-  "gpt-4-vision",
-  "claude-3",
-  "gemini-ultra",
-  "gemini-1.5-pro",
-  "gemini-1.5-flash",
-  "sonnet",
-  "opus",
-  "haiku",
-  "pixtral",
-  "llama3.2",
-];
-
 function modelSupportsTools(modelName: string, provider: string) {
   return (
     provider === "anthropic" &&
@@ -116,33 +68,6 @@ function modelSupportsImages(
   }
 
   return false;
-}
-const PARALLEL_PROVIDERS: string[] = [
-  "anthropic",
-  "bedrock",
-  "sagemaker",
-  "deepinfra",
-  "gemini",
-  "huggingface-inference-api",
-  "huggingface-tgi",
-  "mistral",
-  "moonshot",
-  "free-trial",
-  "replicate",
-  "together",
-  "sambanova",
-  "nebius",
-  "vertexai",
-  "function-network",
-  "scaleway",
-];
-
-function llmCanGenerateInParallel(provider: string, model: string): boolean {
-  if (provider === "openai") {
-    return model.includes("gpt");
-  }
-
-  return PARALLEL_PROVIDERS.includes(provider);
 }
 
 function autodetectTemplateType(model: string): TemplateType | undefined {
@@ -359,7 +284,6 @@ export {
   autodetectPromptTemplates,
   autodetectTemplateFunction,
   autodetectTemplateType,
-  llmCanGenerateInParallel,
   modelSupportsImages,
   modelSupportsTools,
 };
