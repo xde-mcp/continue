@@ -32,10 +32,9 @@ import kotlin.coroutines.resume
 class IdeProtocolClient(
     private val continuePluginService: ContinuePluginService,
     private val coroutineScope: CoroutineScope,
-    workspacePath: String?,
     private val project: Project
 ) : DumbAware {
-    private val ide: IDE = IntelliJIDE(project, workspacePath, continuePluginService)
+    private val ide: IDE = IntelliJIDE(project, continuePluginService)
 
     init {
         // Setup config.json / config.ts save listeners
@@ -216,13 +215,13 @@ class IdeProtocolClient(
                         respond(null)
                     }
 
-                    "getLastModified" -> {
+                    "getFileStats" -> {
                         val params = Gson().fromJson(
                             dataElement.toString(),
-                            GetLastModifiedParams::class.java
+                            GetFileStatsParams::class.java
                         )
-                        val lastModifiedMap = ide.getLastModified(params.files)
-                        respond(lastModifiedMap)
+                        val fileStatsMap = ide.getFileStats(params.files)
+                        respond(fileStatsMap)
                     }
 
                     "listDir" -> {
@@ -295,11 +294,6 @@ class IdeProtocolClient(
                         respond(exists)
                     }
 
-                    "getContinueDir" -> {
-                        val continueDir = ide.getContinueDir()
-                        respond(continueDir)
-                    }
-
                     "openFile" -> {
                         val params = Gson().fromJson(
                             dataElement.toString(),
@@ -333,11 +327,6 @@ class IdeProtocolClient(
 
                         val result = ide.showToast(type, message, *otherParams)
                         respond(result)
-                    }
-
-                    "listFolders" -> {
-                        val folders = ide.listFolders()
-                        respond(folders)
                     }
 
                     "getSearchResults" -> {
@@ -398,11 +387,6 @@ class IdeProtocolClient(
                         )
                         ide.openUrl(url)
                         respond(null)
-                    }
-
-                    "pathSep" -> {
-                        val sep = ide.pathSep()
-                        respond(sep)
                     }
 
                     "insertAtCursor" -> {
@@ -485,6 +469,10 @@ class IdeProtocolClient(
                         }
 
 
+                        val diffStreamService = project.service<DiffStreamService>()
+                        // Clear all diff blocks before running the diff stream
+                        diffStreamService.reject(editor)
+
                         val llmTitle = (llm as? Map<*, *>)?.get("title") as? String ?: ""
 
                         val prompt =
@@ -517,7 +505,6 @@ class IdeProtocolClient(
                                 rif?.range?.end?.line ?: (editor.document.lineCount - 1),
                                 {}, {})
 
-                        val diffStreamService = project.service<DiffStreamService>()
                         diffStreamService.register(diffStreamHandler, editor)
 
                         diffStreamHandler.streamDiffLinesToEditor(
@@ -563,7 +550,7 @@ class IdeProtocolClient(
             val endChar = endOffset - document.getLineStartOffset(endLine)
 
             return@runReadAction RangeInFileWithContents(
-                virtualFile.path, Range(
+                virtualFile.url, Range(
                     Position(startLine, startChar),
                     Position(endLine, endChar)
                 ), selectedText

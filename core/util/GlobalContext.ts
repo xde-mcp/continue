@@ -12,9 +12,9 @@ export type GlobalContextType = {
    *
    * For VS Code users, it is unnecessary since we use transformers.js by default.
    */
-  curEmbeddingsProviderId: string;
   hasDismissedConfigTsNoticeJetBrains: boolean;
   hasAlreadyCreatedAPromptFile: boolean;
+  showConfigUpdateToast: boolean;
 };
 
 /**

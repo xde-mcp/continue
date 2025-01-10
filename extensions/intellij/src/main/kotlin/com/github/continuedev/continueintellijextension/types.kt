@@ -77,6 +77,11 @@ data class Account(
     val id: String
 )
 
+data class FileStats(
+    val lastModified: Long,
+    val size: Long
+)
+
 data class IdeSettings(
     val remoteConfigServerUrl: String?,
     val remoteConfigSyncPeriod: Int,
@@ -114,8 +119,6 @@ interface IDE {
     ): List<String>
 
     suspend fun getAvailableThreads(): List<Thread>
-
-    suspend fun listFolders(): List<String>
 
     suspend fun getWorkspaceDirs(): List<String>
 
@@ -185,7 +188,7 @@ interface IDE {
     // will serialize to `first and `second` rather than `0` and `1` like in JavaScript
     suspend fun listDir(dir: String): List<List<Any>>
 
-    suspend fun getLastModified(files: List<String>): Map<String, Long>
+    suspend fun getFileStats(files: List<String>): Map<String, FileStats>
 
     suspend fun getGitHubAuthToken(args: GetGhTokenArgs): String?
 
@@ -194,8 +197,6 @@ interface IDE {
 
     // Callbacks
     fun onDidChangeActiveTextEditor(callback: (filepath: String) -> Unit)
-
-    suspend fun pathSep(): String
 }
 
 data class GetGhTokenArgs(

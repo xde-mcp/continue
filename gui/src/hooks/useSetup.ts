@@ -1,24 +1,25 @@
 import { useCallback, useContext, useEffect, useRef } from "react";
 import { VSC_THEME_COLOR_VARS } from "../components";
 import { IdeMessengerContext } from "../context/IdeMessenger";
-import { AppDispatch } from "../redux/store";
 
-import { streamResponseThunk } from "../redux/thunks/streamResponse";
-import { isJetBrains } from "../util";
-import { setLocalStorage } from "../util/localStorage";
-import { useWebviewListener } from "./useWebviewListener";
+import { BrowserSerializedContinueConfig } from "core";
+import { ConfigResult } from "core/config/load";
 import { useAppDispatch, useAppSelector } from "../redux/hooks";
-import { setConfig, setConfigError } from "../redux/slices/configSlice";
+import { setConfigError, setConfigResult } from "../redux/slices/configSlice";
 import { updateIndexingStatus } from "../redux/slices/indexingSlice";
 import { updateDocsSuggestions } from "../redux/slices/miscSlice";
 import {
-  setSelectedProfileId,
-  setInactive,
   addContextItemsAtIndex,
+  setInactive,
+  setSelectedProfileId,
 } from "../redux/slices/sessionSlice";
 import { setTTSActive } from "../redux/slices/uiSlice";
-import { updateFileSymbolsFromHistory } from "../redux/thunks/updateFileSymbols";
 import { refreshSessionMetadata } from "../redux/thunks/session";
+import { streamResponseThunk } from "../redux/thunks/streamResponse";
+import { updateFileSymbolsFromHistory } from "../redux/thunks/updateFileSymbols";
+import { isJetBrains } from "../util";
+import { setLocalStorage } from "../util/localStorage";
+import { useWebviewListener } from "./useWebviewListener";
 
 function useSetup() {
   const dispatch = useAppDispatch();
@@ -29,6 +30,32 @@ function useSetup() {
   );
 
   const hasLoadedConfig = useRef(false);
+
+  const handleConfigUpdate = useCallback(
+    async (
+      initial: boolean,
+      result: {
+        result: ConfigResult<BrowserSerializedContinueConfig>;
+        profileId: string;
+      },
+    ) => {
+      const { result: configResult, profileId } = result;
+      if (initial && hasLoadedConfig.current) {
+        return;
+      }
+      hasLoadedConfig.current = true;
+      dispatch(setConfigResult(configResult));
+      dispatch(setSelectedProfileId(profileId));
+
+      // Perform any actions needed with the config
+      if (configResult.config?.ui?.fontSize) {
+        setLocalStorage("fontSize", configResult.config.ui.fontSize);
+        document.body.style.fontSize = `${configResult.config.ui.fontSize}px`;
+      }
+    },
+    [dispatch, hasLoadedConfig],
+  );
+
   const loadConfig = useCallback(
     async (initial: boolean) => {
       const result = await ideMessenger.request(
@@ -38,21 +65,10 @@ function useSetup() {
       if (result.status === "error") {
         return;
       }
-      const { config, profileId } = result.content;
-      if (initial && hasLoadedConfig.current) {
-        return;
-      }
-      hasLoadedConfig.current = true;
-      dispatch(setConfig(config));
-      dispatch(setSelectedProfileId(profileId));
-
-      // Perform any actions needed with the config
-      if (config.ui?.fontSize) {
-        setLocalStorage("fontSize", config.ui.fontSize);
-        document.body.style.fontSize = `${config.ui.fontSize}px`;
-      }
+      console.log("Config loaded", result.content);
+      await handleConfigUpdate(initial, result.content);
     },
-    [dispatch, ideMessenger, hasLoadedConfig],
+    [ideMessenger, handleConfigUpdate],
   );
 
   // Load config from the IDE
@@ -78,8 +94,11 @@ function useSetup() {
 
   useWebviewListener(
     "configUpdate",
-    async () => {
-      await loadConfig(false);
+    async (update) => {
+      if (!update) {
+        return;
+      }
+      await handleConfigUpdate(false, update);
     },
     [loadConfig],
   );
@@ -100,10 +119,12 @@ function useSetup() {
     if (isJetBrains()) {
       // Save theme colors to local storage for immediate loading in JetBrains
       ideMessenger.request("jetbrains/getColors", undefined).then((result) => {
-        Object.keys(result).forEach((key) => {
-          document.body.style.setProperty(key, result[key]);
-          document.documentElement.style.setProperty(key, result[key]);
-        });
+        if (result.status === "success") {
+          Object.entries(result.content).forEach(([key, value]) => {
+            document.body.style.setProperty(key, value);
+            document.documentElement.style.setProperty(key, value);
+          });
+        }
       });
 
       // Tell JetBrains the webview is ready
@@ -147,7 +168,7 @@ function useSetup() {
   useWebviewListener(
     "getCurrentSessionId",
     async () => {
-      return sessionId
+      return sessionId;
     },
     [sessionId],
   );

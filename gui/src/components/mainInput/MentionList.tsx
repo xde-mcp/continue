@@ -38,10 +38,10 @@ import {
 } from "..";
 import { IdeMessengerContext } from "../../context/IdeMessenger";
 import { setDialogMessage, setShowDialog } from "../../redux/slices/uiSlice";
-import HeaderButtonWithToolTip from "../gui/HeaderButtonWithToolTip";
 import FileIcon from "../FileIcon";
 import SafeImg from "../SafeImg";
 import AddDocsDialog from "../dialogs/AddDocsDialog";
+import HeaderButtonWithToolTip from "../gui/HeaderButtonWithToolTip";
 import { ComboBoxItem, ComboBoxItemType } from "./types";
 
 const ICONS_FOR_DROPDOWN: { [key: string]: any } = {
@@ -66,11 +66,12 @@ const ICONS_FOR_DROPDOWN: { [key: string]: any } = {
   "/cmd": CommandLineIcon,
 };
 
-export function getIconFromDropdownItem(id: string, type: ComboBoxItemType) {
-  return (
-    ICONS_FOR_DROPDOWN[id] ??
-    (type === "contextProvider" ? AtSymbolIcon : BoltIcon)
-  );
+export function getIconFromDropdownItem(
+  id: string | undefined,
+  type: ComboBoxItemType,
+) {
+  const typeIcon = type === "contextProvider" ? AtSymbolIcon : BoltIcon;
+  return id ? (ICONS_FOR_DROPDOWN[id] ?? typeIcon) : typeIcon;
 }
 
 function DropdownIcon(props: { className?: string; item: ComboBoxItem }) {
@@ -120,7 +121,7 @@ const ItemsDiv = styled.div`
   overflow-y: auto;
   max-height: 330px;
   padding: 0.2rem;
-  position: relative;
+  position: relative; // absolute to test tippy.js bug
 
   background-color: ${vscQuickInputBackground};
   /* backdrop-filter: blur(12px); */
@@ -238,7 +239,7 @@ const MentionList = forwardRef((props: MentionListProps, ref) => {
     }
   }, [querySubmenuItem]);
 
-  const selectItem = (index) => {
+  const selectItem = (index: number) => {
     const item = allItems[index];
 
     if (item.type === "action" && item.action) {
@@ -251,7 +252,9 @@ const MentionList = forwardRef((props: MentionListProps, ref) => {
       item.contextProvider?.type === "submenu"
     ) {
       setSubMenuTitle(item.description);
-      props.enterSubmenu(props.editor, item.id);
+      if (item.id) {
+        props.enterSubmenu?.(props.editor, item.id);
+      }
       return;
     }
 
@@ -308,7 +311,7 @@ const MentionList = forwardRef((props: MentionListProps, ref) => {
   useEffect(() => setSelectedIndex(0), [allItems]);
 
   useImperativeHandle(ref, () => ({
-    onKeyDown: ({ event }) => {
+    onKeyDown: ({ event }: { event: KeyboardEvent }) => {
       if (event.key === "ArrowUp") {
         upHandler();
         return true;
@@ -352,13 +355,16 @@ const MentionList = forwardRef((props: MentionListProps, ref) => {
   }, [allItems]);
 
   return (
-    <ItemsDiv className="items-container">
+    <ItemsDiv>
       {querySubmenuItem ? (
         <QueryInput
           rows={1}
           ref={queryInputRef}
           placeholder={querySubmenuItem.description}
           onKeyDown={(e) => {
+            if (!queryInputRef.current) {
+              return;
+            }
             if (e.key === "Enter") {
               if (e.shiftKey) {
                 queryInputRef.current.innerText += "\n";

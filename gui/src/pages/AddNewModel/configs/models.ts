@@ -9,6 +9,12 @@ export interface PackageDimension {
   description: string;
   options: { [key: string]: { [key: string]: any } };
 }
+
+export interface DisplayInfo {
+  title: string;
+  icon?: string;
+}
+
 export interface ModelPackage {
   title: string;
   icon?: string;
@@ -31,6 +37,60 @@ export interface ModelPackage {
 }
 
 export const models: { [key: string]: ModelPackage } = {
+  llama318BChat: {
+    title: "Llama 3.1 8B",
+    description: "A model from Meta, fine-tuned for chat",
+    refUrl: "",
+    params: {
+      title: "Llama3.1-8b",
+      model: "meta-llama/llama-3.1-8b-instruct",
+      contextLength: 8192,
+    },
+    icon: "meta.png",
+    dimensions: [
+      {
+        name: "Parameter Count",
+        description: "The number of parameters in the model",
+        options: {
+          "8b": {
+            model: "meta-llama/llama-3.1-8b-instruct",
+            title: "Llama3.1-8b",
+          }
+        },
+      },
+    ],
+    providerOptions: [
+      "novita"
+    ],
+    isOpenSource: true,
+  },
+  mistralChat: {
+    title: "Mistral Chat",
+    description:
+      "A series of open-weight models created by Mistral AI, highly competent for code generation and other tasks",
+    params: {
+      title: "Mistral",
+      model: "mistralai/mistral-7b-instruct",
+      contextLength: 4096,
+    },
+    dimensions: [
+      {
+        name: "Parameter Count",
+        description: "The number of parameters in the model",
+        options: {
+          "7b": {
+            model: "mistralai/mistral-7b-instruct",
+            title: "Mistral-7b",
+          },
+        },
+      },
+    ],
+    icon: "mistral.png",
+    providerOptions: [
+      "novita",
+    ],
+    isOpenSource: true,
+  },
   llama31Chat: {
     title: "Llama3.1 Chat",
     description: "A model from Meta, fine-tuned for chat",
@@ -70,7 +130,7 @@ export const models: { [key: string]: ModelPackage } = {
       "sambanova",
       "cerebras",
       "nebius",
-      "scaleway"
+      "scaleway",
     ],
     isOpenSource: true,
   },
@@ -1053,10 +1113,10 @@ export const models: { [key: string]: ModelPackage } = {
     providerOptions: ["vertexai"],
     isOpenSource: false,
   },
-  gpt4gov: {
+  asksagegpt4gov: {
     title: "GPT-4 gov",
     description:
-      "U.S. Government. Most capable model today - which is similar to GPT-4o but approved for use by the U.S. Government.",
+      "U.S. Government. Most capable model today - which is similar to GPT-4 but approved for use by the U.S. Government.",
     params: {
       model: "gpt4-gov",
       contextLength: 128_000,
@@ -1068,20 +1128,142 @@ export const models: { [key: string]: ModelPackage } = {
     icon: "openai.png",
     isOpenSource: false,
   },
-  gpt4ogov: {
+  asksagegpt4ogov: {
     title: "GPT-4o gov",
     description:
       "U.S. Government. Most capable model today - which is similar to GPT-4o but approved for use by the U.S. Government.",
     params: {
       model: "gpt-4o-gov",
       contextLength: 128_000,
-      title: "GPT-4o",
+      title: "GPT-4o-gov",
       systemMessage:
         "You are an expert software developer. You give helpful and concise responses.", // Need to set this on the Ask Sage side or just configure it in here to be discussed
     },
     providerOptions: ["askSage"],
     icon: "openai.png",
     isOpenSource: false,
+  },
+  asksagegpt35gov: {
+    title: "GPT-3.5-Turbo gov",
+    description: "U.S. Government. Inexpensive and good ROI.",
+    params: {
+      model: "gpt-gov",
+      contextLength: 8096,
+      title: "GPT-3.5-Turbo gov",
+      systemMessage:
+        "You are an expert software developer. You give helpful and concise responses.", // Need to set this on the Ask Sage side or just configure it in here to be discussed
+    },
+    providerOptions: ["askSage"],
+    icon: "openai.png",
+    isOpenSource: false,
+  },
+  asksagegpt4ominigov: {
+    title: "GPT-4o-mini gov",
+    description:
+      "U.S. Government. Latest OpenAI GPT 4o-mini model. More inexpensive than GPT4. Capable of ingesting and analyzing images (JPG, PNG, GIF (20MB files max)). 16,384 token response max.",
+    params: {
+      model: "gpt-4o-mini-gov",
+      contextLength: 128_000,
+      title: "GPT-4o-mini gov",
+      systemMessage:
+        "You are an expert software developer. You give helpful and concise responses.", // Need to set this on the Ask Sage side or just configure it in here to be discussed
+    },
+    providerOptions: ["askSage"],
+    icon: "openai.png",
+    isOpenSource: false,
+  },
+  asksagegpt4: {
+    title: "GPT-4",
+    description:
+      "GPT4 is about 5X more expensive than Ask Sage tokens and 50X more expensive than GPT3.5",
+    params: {
+      model: "gpt4",
+      contextLength: 8_192,
+      title: "GPT-4",
+    },
+    providerOptions: ["openai"],
+    icon: "openai.png",
+    isOpenSource: false,
+  },
+  asksagegpt432: {
+    title: "GPT-4-32k",
+    description:
+      "The GPT-4-32k model is a variant of the GPT-4 model developed by OpenAI. It is designed to handle a larger context window, capable of processing up to 32,768 tokens, which makes it suitable for scenarios that require extensive information integration and data analysis",
+    params: {
+      model: "gpt4-32k",
+      contextLength: 32_768,
+      title: "GPT-4-32k",
+    },
+    providerOptions: ["openai"],
+    icon: "openai.png",
+    isOpenSource: false,
+  },
+  asksagegpto1: {
+    title: "GPT-o1",
+    description:
+      "Latest OpenAI GPT-o1 model. More inexpensive than GPT4. Capable of ingesting and analyzing images (JPG, PNG, GIF (20MB files max)).",
+    params: {
+      model: "gpt-o1",
+      contextLength: 128_000,
+      title: "GPT-o1",
+      systemMessage:
+        "You are an expert software developer. You give helpful and concise responses.",
+    },
+    providerOptions: ["askSage"],
+    icon: "openai.png",
+    isOpenSource: false,
+  },
+  asksagegpto1mini: {
+    title: "GPT-o1-mini",
+    description:
+      "Latest OpenAI GPT-o1-mini model. More inexpensive than GPT-o1. Capable of ingesting and analyzing images (JPG, PNG, GIF (20MB files max)). 16,384 token response max.",
+    params: {
+      model: "gpt-o1-mini",
+      contextLength: 128_000,
+      title: "GPT-o1-mini",
+      systemMessage:
+        "You are an expert software developer. You give helpful and concise responses.",
+    },
+    providerOptions: ["askSage"],
+    icon: "openai.png",
+    isOpenSource: false,
+  },
+  asksageclaude35gov: {
+    title: "Claude 3.5 Sonnet gov",
+    description:
+      "Anthropic's most intelligent model, but much less expensive than Claude 3 Opus",
+    params: {
+      model: "aws-bedrock-claude-35-sonnet-gov",
+      contextLength: 200_000,
+      title: "Claude 3.5 Sonnet gov",
+      systemMessage:
+        "You are an expert software developer. You give helpful and concise responses.",
+    },
+    providerOptions: ["askSage"],
+    icon: "anthropic.png",
+    isOpenSource: false,
+  },
+  asksagegroqllama33: {
+    title: "Llama 3.3",
+    description: "Llama-3.3 is a large language model customized by Groq.",
+    params: {
+      title: "Llama 3.3",
+      model: "groq-llama33",
+      contextLength: 128_000,
+    },
+    icon: "groq.png",
+    isOpenSource: true,
+  },
+  asksagegroq70b: {
+    title: "Groq-70B",
+    description: "A large language model customized by Groq.",
+    params: {
+      title: "Groq-70B",
+      model: "groq-70b",
+      contextLength: 8_192,
+    },
+    icon: "groq.png",
+    isOpenSource: true,
   },
   Qwen2Coder: {
     title: "Qwen 2.5 Coder 7b",
@@ -1119,7 +1301,7 @@ export const models: { [key: string]: ModelPackage } = {
     },
     icon: "qwen.png",
     providerOptions: ["scaleway"],
-    isOpenSource: true,    
+    isOpenSource: true,
   },
   grokBeta: {
     title: "Grok Beta",
@@ -1131,7 +1313,7 @@ export const models: { [key: string]: ModelPackage } = {
       contextLength: 128_000,
     },
     icon: "xAI.png",
-    providerOptions: ["xAI"],
+    providerOptions: ["xAI", "askSage"],
     isOpenSource: false,
   },
   gemma2_2b: {

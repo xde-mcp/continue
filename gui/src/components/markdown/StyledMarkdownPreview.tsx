@@ -1,5 +1,5 @@
 import { ctxItemToRifWithContents } from "core/commands/util";
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo } from "react";
 import { useRemark } from "react-remark";
 import rehypeHighlight, { Options } from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
@@ -28,6 +28,8 @@ import { fixDoubleDollarNewLineLatex } from "./utils/fixDoubleDollarLatex";
 import { selectUIConfig } from "../../redux/slices/configSlice";
 import { ToolTip } from "../gui/Tooltip";
 import { v4 as uuidv4 } from "uuid";
+import { ContextItemWithId, RangeInFileWithContents } from "core";
+import { getContextItemsFromHistory } from "../../redux/thunks/updateFileSymbols";
 
 const StyledMarkdown = styled.div<{
   fontSize?: number;
@@ -42,8 +44,7 @@ const StyledMarkdown = styled.div<{
     overflow-x: scroll;
     overflow-y: hidden;
 
-    margin: 10px 0;
-    padding: 6px 8px;
+    padding: 16px 8px;
   }
 
   code {
@@ -133,31 +134,6 @@ function getCodeChildrenContent(children: any) {
   return undefined;
 }
 
-function processCodeBlocks(tree: any) {
-  const lastNode = tree.children[tree.children.length - 1];
-  const lastCodeNode = lastNode.type === "code" ? lastNode : null;
-
-  visit(tree, "code", (node: any) => {
-    if (!node.lang) {
-      node.lang = "javascript";
-    } else if (node.lang.includes(".")) {
-      node.lang = node.lang.split(".").slice(-1)[0];
-    }
-
-    node.data = node.data || {};
-    node.data.hProperties = node.data.hProperties || {};
-
-    node.data.hProperties["data-isgeneratingcodeblock"] = lastCodeNode === node;
-    node.data.hProperties["data-codeblockcontent"] = node.value;
-
-    if (node.meta) {
-      let meta = node.meta.split(" ");
-      node.data.hProperties.filepath = meta[0];
-      node.data.hProperties.range = meta[1];
-    }
-  });
-}
-
 const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
   props: StyledMarkdownPreviewProps,
 ) {
@@ -165,34 +141,34 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
   // So they won't use the most up-to-date state values
   // So in this case we just put them in refs
 
-  // Grab context items that are this one or further back
+  // The logic here is to get file names from
+  // 1. Context items found in past messages
+  // 2. Toolbar Codeblocks found in past messages
   const history = useAppSelector((state) => state.session.history);
-  const previousFileContextItems = useMemo(() => {
+  const allSymbols = useAppSelector((state) => state.session.symbols);
+  const pastFileInfo = useMemo(() => {
     const index = props.itemIndex;
     if (index === undefined) {
-      return [];
+      return {
+        symbols: [],
+        rifs: [],
+      };
     }
-    const previousItems = history.flatMap((item, i) =>
-      i <= index ? item.contextItems : [],
+    const pastContextItems = getContextItemsFromHistory(history, index);
+    const rifs = pastContextItems.map((item) =>
+      ctxItemToRifWithContents(item, true),
     );
-    return previousItems.filter(
-      (item) => item.uri?.type === "file" && item?.uri?.value,
-    );
-  }, [props.itemIndex, history]);
-  const previousFileContextItemsRef = useUpdatingRef(previousFileContextItems);
-
-  // Extract global symbols for files matching previous context items
-  const allSymbols = useAppSelector((state) => state.session.symbols);
-  const previousFileContextItemSymbols = useMemo(() => {
-    const uniqueUris = new Set(
-      previousFileContextItems.map((item) => item.uri!.value!),
-    );
-    return Object.entries(allSymbols)
-      .filter((e) => uniqueUris.has(e[0]))
+    const symbols = Object.entries(allSymbols)
+      .filter((e) => pastContextItems.find((item) => item.uri!.value === e[0]))
       .map((f) => f[1])
       .flat();
-  }, [allSymbols, previousFileContextItems]);
-  const symbolsRef = useUpdatingRef(previousFileContextItemSymbols);
+
+    return {
+      symbols,
+      rifs,
+    };
+  }, [props.itemIndex, history, allSymbols]);
+  const pastFileInfoRef = useUpdatingRef(pastFileInfo);
 
   const [reactContent, setMarkdownSource] = useRemark({
     remarkPlugins: [
@@ -203,7 +179,31 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
           singleDollarTextMath: false,
         },
       ],
-      () => processCodeBlocks,
+      () => (tree: any) => {
+        const lastNode = tree.children[tree.children.length - 1];
+        const lastCodeNode = lastNode.type === "code" ? lastNode : null;
+
+        visit(tree, "code", (node: any) => {
+          if (!node.lang) {
+            node.lang = "javascript";
+          } else if (node.lang.includes(".")) {
+            node.lang = node.lang.split(".").slice(-1)[0];
+          }
+
+          node.data = node.data || {};
+          node.data.hProperties = node.data.hProperties || {};
+
+          node.data.hProperties["data-isgeneratingcodeblock"] =
+            lastCodeNode === node;
+          node.data.hProperties["data-codeblockcontent"] = node.value;
+
+          if (node.meta) {
+            let meta = node.meta.split(" ");
+            node.data.hProperties["data-relativefilepath"] = meta[0];
+            node.data.hProperties.range = meta[1];
+          }
+        });
+      },
     ],
     rehypePlugins: [
       rehypeKatex as any,
@@ -221,7 +221,7 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
         return (tree) => {
           visit(tree, { tagName: "pre" }, (node: any) => {
             // Add an index (0, 1, 2, etc...) to each code block.
-            node.properties = { codeBlockIndex };
+            node.properties = { "data-codeblockindex": codeBlockIndex };
             codeBlockIndex++;
           });
         };
@@ -230,7 +230,7 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
     ],
     rehypeReactOptions: {
       components: {
-        a: ({ node, ...aProps }) => {
+        a: ({ ...aProps }) => {
           const tooltipId = uuidv4();
 
           return (
@@ -249,10 +249,12 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
             </>
           );
         },
-        pre: ({ node, ...preProps }) => {
-          const preChildProps = preProps?.children?.[0]?.props;
-          const { className, filepath, range } = preProps?.children?.[0]?.props;
+        pre: ({ ...preProps }) => {
+          const codeBlockIndex = preProps["data-codeblockindex"];
 
+          const preChildProps = preProps?.children?.[0]?.props ?? {};
+          const { className, range } = preChildProps;
+          const relativeFilePath = preChildProps["data-relativefilepath"];
           const codeBlockContent = preChildProps["data-codeblockcontent"];
           const isGeneratingCodeBlock =
             preChildProps["data-isgeneratingcodeblock"];
@@ -266,13 +268,13 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
           // If we don't have a filepath show the more basic toolbar
           // that is just action buttons on hover.
           // We also use this in JB since we haven't yet implemented
-          // the logic for lazy apply.
-          if (!filepath || isJetBrains()) {
+          // the logic forfileUri lazy apply.
+          if (!relativeFilePath || isJetBrains()) {
             return (
               <StepContainerPreActionButtons
                 language={language}
                 codeBlockContent={codeBlockContent}
-                codeBlockIndex={preProps.codeBlockIndex}
+                codeBlockIndex={codeBlockIndex}
               >
                 <SyntaxHighlightedPre {...preProps} />
               </StepContainerPreActionButtons>
@@ -283,9 +285,9 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
           return (
             <StepContainerPreToolbar
               codeBlockContent={codeBlockContent}
-              codeBlockIndex={preProps.codeBlockIndex}
+              codeBlockIndex={codeBlockIndex}
               language={language}
-              filepath={filepath}
+              relativeFilepath={relativeFilePath}
               isGeneratingCodeBlock={isGeneratingCodeBlock}
               range={range}
             >
@@ -293,29 +295,32 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
             </StepContainerPreToolbar>
           );
         },
-        code: ({ node, ...codeProps }) => {
+        code: ({ ...codeProps }) => {
           const content = getCodeChildrenContent(codeProps.children);
 
-          if (content && previousFileContextItemsRef.current) {
+          if (content) {
+            const { symbols, rifs } = pastFileInfoRef.current;
+
             // Insert file links for matching previous context items
-            const ctxItem = previousFileContextItemsRef.current.find((item) =>
-              item.uri!.value!.includes(content),
-            );
-            if (ctxItem) {
-              const rif = ctxItemToRifWithContents(ctxItem);
-              return <FilenameLink rif={rif} />;
+            // With some reasonable limitations on what might be a filename
+            if (rifs.length && content.includes(".") && content.length > 2) {
+              const match = rifs.find(
+                (rif) => rif.filepath.split("/").pop() === content, // Exact match for last segment of URI
+              );
+
+              if (match) {
+                return <FilenameLink rif={match} />;
+              }
             }
 
             // Insert symbols for exact matches
-            const exactSymbol = symbolsRef.current.find(
-              (s) => s.name === content,
-            );
+            const exactSymbol = symbols.find((s) => s.name === content);
             if (exactSymbol) {
               return <SymbolLink content={content} symbol={exactSymbol} />;
             }
 
             // Partial matches - this is the case where the llm returns e.g. `subtract(number)` instead of `subtract`
-            const partialSymbol = symbolsRef.current.find((s) =>
+            const partialSymbol = symbols.find((s) =>
               content.startsWith(s.name),
             );
             if (partialSymbol) {

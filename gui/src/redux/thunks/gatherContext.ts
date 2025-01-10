@@ -6,14 +6,10 @@ import {
   MessageContent,
   RangeInFile,
 } from "core";
-import { getBasename, getRelativePath } from "core/util";
-import resolveEditorContent, {
-  hasSlashCommandOrContextProvider,
-} from "../../components/mainInput/resolveInput";
+import resolveEditorContent from "../../components/mainInput/resolveInput";
 import { ThunkApiType } from "../store";
 import { selectDefaultModel } from "../slices/configSlice";
-import { setIsGatheringContext } from "../slices/sessionSlice";
-import { updateFileSymbolsFromNewContextItems } from "./updateFileSymbols";
+import { findUriInDirs, getUriPathBasename } from "core/util/uri";
 
 export const gatherContext = createAsyncThunk<
   {
@@ -39,18 +35,13 @@ export const gatherContext = createAsyncThunk<
       state.config.config.experimental?.defaultContext ?? [];
 
     if (!state.config.defaultModelTitle) {
-      console.error("Failed to gather context, no model selected");
-      return;
+      console.error(
+        "gatherContext thunk: Cannot gather context, no model selected",
+      );
+      throw new Error("No chat model selected");
     }
 
     // Resolve context providers and construct new history
-    const shouldGatherContext =
-      modifiers.useCodebase || hasSlashCommandOrContextProvider(editorState);
-
-    if (shouldGatherContext) {
-      dispatch(setIsGatheringContext(true));
-    }
-
     let [selectedContextItems, selectedCode, content] =
       await resolveEditorContent({
         editorState,
@@ -81,11 +72,13 @@ export const gatherContext = createAsyncThunk<
         ) {
           // don't add the file if it's already in the context items
           selectedContextItems.unshift({
-            content: `The following file is currently open. Don't reference it if it's not relevant to the user's message.\n\n\`\`\`${getRelativePath(
-              currentFile.path,
-              await extra.ideMessenger.ide.getWorkspaceDirs(),
-            )}\n${currentFileContents}\n\`\`\``,
-            name: `Active file: ${getBasename(currentFile.path)}`,
+            content: `The following file is currently open. Don't reference it if it's not relevant to the user's message.\n\n\`\`\`${
+              findUriInDirs(
+                currentFile.path,
+                await extra.ideMessenger.ide.getWorkspaceDirs(),
+              ).relativePathOrBasename
+            }\n${currentFileContents}\n\`\`\``,
+            name: `Active file: ${getUriPathBasename(currentFile.path)}`,
             description: currentFile.path,
             id: {
               itemId: currentFile.path,
@@ -99,8 +92,6 @@ export const gatherContext = createAsyncThunk<
         }
       }
     }
-
-    dispatch(updateFileSymbolsFromNewContextItems(selectedContextItems));
 
     if (promptPreamble) {
       if (typeof content === "string") {
