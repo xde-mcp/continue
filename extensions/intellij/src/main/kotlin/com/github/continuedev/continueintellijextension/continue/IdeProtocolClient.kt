@@ -32,10 +32,9 @@ import kotlin.coroutines.resume
 class IdeProtocolClient(
     private val continuePluginService: ContinuePluginService,
     private val coroutineScope: CoroutineScope,
-    workspacePath: String?,
     private val project: Project
 ) : DumbAware {
-    private val ide: IDE = IntelliJIDE(project, workspacePath, continuePluginService)
+    private val ide: IDE = IntelliJIDE(project, continuePluginService)
 
     init {
         // Setup config.json / config.ts save listeners
@@ -295,11 +294,6 @@ class IdeProtocolClient(
                         respond(exists)
                     }
 
-                    "getContinueDir" -> {
-                        val continueDir = ide.getContinueDir()
-                        respond(continueDir)
-                    }
-
                     "openFile" -> {
                         val params = Gson().fromJson(
                             dataElement.toString(),
@@ -333,11 +327,6 @@ class IdeProtocolClient(
 
                         val result = ide.showToast(type, message, *otherParams)
                         respond(result)
-                    }
-
-                    "listFolders" -> {
-                        val folders = ide.listFolders()
-                        respond(folders)
                     }
 
                     "getSearchResults" -> {
@@ -398,11 +387,6 @@ class IdeProtocolClient(
                         )
                         ide.openUrl(url)
                         respond(null)
-                    }
-
-                    "pathSep" -> {
-                        val sep = ide.pathSep()
-                        respond(sep)
                     }
 
                     "insertAtCursor" -> {
@@ -563,7 +547,7 @@ class IdeProtocolClient(
             val endChar = endOffset - document.getLineStartOffset(endLine)
 
             return@runReadAction RangeInFileWithContents(
-                virtualFile.path, Range(
+                virtualFile.url, Range(
                     Position(startLine, startChar),
                     Position(endLine, endChar)
                 ), selectedText

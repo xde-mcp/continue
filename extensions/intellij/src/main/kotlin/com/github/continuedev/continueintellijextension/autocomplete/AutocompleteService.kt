@@ -69,7 +69,7 @@ class AutocompleteService(private val project: Project) {
         val column = editor.caretModel.primaryCaret.logicalPosition.column
         val input = mapOf(
             "completionId" to completionId,
-            "filepath" to virtualFile?.path,
+            "filepath" to virtualFile?.url,
             "pos" to mapOf(
                 "line" to editor.caretModel.primaryCaret.logicalPosition.line,
                 "character" to column
@@ -287,12 +287,13 @@ class AutocompleteService(private val project: Project) {
     }
 
     private fun isInjectedFile(editor: Editor): Boolean {
-        val psiFile = runReadAction { PsiDocumentManager.getInstance(project).getPsiFile(editor.document) }
-        if (psiFile == null) {
-            return false
-        }
-        val response = runReadAction { psiFile.isInjectedText() }
-        return response
+        return ApplicationManager.getApplication().executeOnPooledThread<Boolean> {
+            ApplicationManager.getApplication().runReadAction<Boolean> {
+                val psiFile =
+                    PsiDocumentManager.getInstance(project).getPsiFile(editor.document) ?: return@runReadAction false
+                return@runReadAction psiFile.isInjectedText()
+            }
+        }.get()
     }
 
     fun hideCompletions(editor: Editor) {

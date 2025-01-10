@@ -1,6 +1,5 @@
 import com.github.continuedev.continueintellijextension.*
 import com.github.continuedev.continueintellijextension.constants.getContinueGlobalPath
-import com.github.continuedev.continueintellijextension.`continue`.DiffManager
 import com.github.continuedev.continueintellijextension.services.ContinueExtensionSettings
 import com.github.continuedev.continueintellijextension.services.ContinuePluginService
 import com.github.continuedev.continueintellijextension.utils.OS
@@ -23,11 +22,13 @@ import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.IconLoader
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.LightVirtualFile
+import com.intellij.util.containers.toArray
 import kotlinx.coroutines.*
 import java.awt.Desktop
 import java.awt.Toolkit
@@ -42,7 +43,6 @@ import java.nio.file.Paths
 
 class IntelliJIDE(
     private val project: Project,
-    private val workspacePath: String?,
     private val continuePluginService: ContinuePluginService,
 
     ) : IDE {
@@ -108,7 +108,7 @@ class IntelliJIDE(
             } else {
                 ProcessBuilder("git", "diff", "--cached")
             }
-            builder.directory(File(workspaceDir))
+            builder.directory(File(URI(workspaceDir)))
             val process = withContext(Dispatchers.IO) {
                 builder.start()
             }
@@ -168,19 +168,6 @@ class IntelliJIDE(
         throw NotImplementedError("getAvailableThreads not implemented yet")
     }
 
-    override suspend fun listFolders(): List<String> {
-        val workspacePath = this.workspacePath ?: return emptyList()
-        val folders = mutableListOf<String>()
-        fun findNestedFolders(dirPath: String) {
-            val dir = File(dirPath)
-            val nestedFolders = dir.listFiles { file -> file.isDirectory }?.map { it.absolutePath } ?: emptyList()
-            folders.addAll(nestedFolders)
-            nestedFolders.forEach { folder -> findNestedFolders(folder) }
-        }
-        findNestedFolders(workspacePath)
-        return folders
-    }
-
     override suspend fun getWorkspaceDirs(): List<String> {
         return workspaceDirectories().toList()
     }
@@ -191,16 +178,14 @@ class IntelliJIDE(
         val configs = mutableListOf<String>()
 
         for (workspaceDir in workspaceDirs) {
-            val workspacePath = File(workspaceDir)
-            val dir = VirtualFileManager.getInstance().findFileByUrl("file://$workspacePath")
+            val dir = VirtualFileManager.getInstance().findFileByUrl(workspaceDir)
             if (dir != null) {
-                val contents = dir.children.map { it.name }
+                val contents = dir.children.map { it.url }
 
                 // Find any .continuerc.json files
                 for (file in contents) {
                     if (file.endsWith(".continuerc.json")) {
-                        val filePath = workspacePath.resolve(file)
-                        val fileContent = File(filePath.toString()).readText()
+                        val fileContent = File(URI(file)).readText()
                         configs.add(fileContent)
                     }
                 }
@@ -211,12 +196,12 @@ class IntelliJIDE(
     }
 
     override suspend fun fileExists(filepath: String): Boolean {
-        val file = File(filepath)
+        val file = File(URI(filepath))
         return file.exists()
     }
 
     override suspend fun writeFile(path: String, contents: String) {
-        val file = File(path)
+        val file = File(URI(path))
         file.writeText(contents)
     }
 
@@ -232,7 +217,7 @@ class IntelliJIDE(
     }
 
     override suspend fun openFile(path: String) {
-        val file = LocalFileSystem.getInstance().findFileByPath(path)
+        val file = LocalFileSystem.getInstance().findFileByPath(URI(path).path)
         file?.let {
             ApplicationManager.getApplication().invokeLater {
                 FileEditorManager.getInstance(project).openFile(it, true)
@@ -252,7 +237,7 @@ class IntelliJIDE(
 
     override suspend fun saveFile(filepath: String) {
         ApplicationManager.getApplication().invokeLater {
-            val file = LocalFileSystem.getInstance().findFileByPath(filepath) ?: return@invokeLater
+            val file = LocalFileSystem.getInstance().findFileByPath(URI(filepath).path) ?: return@invokeLater
             val fileDocumentManager = FileDocumentManager.getInstance()
             val document = fileDocumentManager.getDocument(file)
 
@@ -265,7 +250,7 @@ class IntelliJIDE(
     override suspend fun readFile(filepath: String): String {
         return try {
             val content = ApplicationManager.getApplication().runReadAction<String?> {
-                val virtualFile = LocalFileSystem.getInstance().findFileByPath(filepath)
+                val virtualFile = LocalFileSystem.getInstance().findFileByPath(URI(filepath).path)
                 if (virtualFile != null && FileDocumentManager.getInstance().isFileModified(virtualFile)) {
                     return@runReadAction FileDocumentManager.getInstance().getDocument(virtualFile)?.text
                 }
@@ -275,7 +260,7 @@ class IntelliJIDE(
             if (content != null) {
                 content
             } else {
-                val file = File(filepath)
+                val file = File(URI(filepath))
                 if (!file.exists()) return ""
                 withContext(Dispatchers.IO) {
                     FileInputStream(file).use { fis ->
@@ -322,7 +307,7 @@ class IntelliJIDE(
 
     override suspend fun getOpenFiles(): List<String> {
         val fileEditorManager = FileEditorManager.getInstance(project)
-        return fileEditorManager.openFiles.map { it.path }.toList()
+        return fileEditorManager.openFiles.map { it.url }.toList()
     }
 
     override suspend fun getCurrentFile(): Map<String, Any>? {
@@ -331,7 +316,7 @@ class IntelliJIDE(
         val virtualFile = editor?.document?.let { FileDocumentManager.getInstance().getFile(it) }
         return virtualFile?.let {
             mapOf(
-                "path" to it.path,
+                "path" to it.url,
                 "contents" to editor.document.text,
                 "isUntitled" to false
             )
@@ -397,7 +382,7 @@ class IntelliJIDE(
 
                     problems.add(
                         Problem(
-                            filepath = psiFile.virtualFile?.path ?: "",
+                            filepath = psiFile.virtualFile?.url ?: "",
                             range = Range(
                                 start = Position(
                                     line = startLineNumber,
@@ -422,7 +407,7 @@ class IntelliJIDE(
         return withContext(Dispatchers.IO) {
             try {
                 val builder = ProcessBuilder("git", "rev-parse", "--abbrev-ref", "HEAD")
-                builder.directory(File(dir))
+                builder.directory(File(URI(dir)))
                 val process = builder.start()
                 val reader = BufferedReader(InputStreamReader(process.inputStream))
                 val output = reader.readLine()
@@ -452,7 +437,7 @@ class IntelliJIDE(
 
     override suspend fun getRepoName(dir: String): String? {
         return withContext(Dispatchers.IO) {
-            val directory = File(dir)
+            val directory = File(URI(dir))
             val targetDir = if (directory.isFile) directory.parentFile else directory
             val builder = ProcessBuilder("git", "config", "--get", "remote.origin.url")
             builder.directory(targetDir)
@@ -516,7 +501,7 @@ class IntelliJIDE(
     override suspend fun getGitRootPath(dir: String): String? {
         return withContext(Dispatchers.IO) {
             val builder = ProcessBuilder("git", "rev-parse", "--show-toplevel")
-            builder.directory(File(dir))
+            builder.directory(File(URI(dir)))
             val process = builder.start()
 
             val reader = BufferedReader(InputStreamReader(process.inputStream))
@@ -527,7 +512,7 @@ class IntelliJIDE(
     }
 
     override suspend fun listDir(dir: String): List<List<Any>> {
-        val files = File(dir).listFiles()?.map {
+        val files = File(URI(dir)).listFiles()?.map {
             listOf(it.name, if (it.isDirectory) FileType.DIRECTORY else FileType.FILE)
         } ?: emptyList()
 
@@ -536,7 +521,7 @@ class IntelliJIDE(
 
     override suspend fun getLastModified(files: List<String>): Map<String, Long> {
         return files.associateWith { file ->
-            File(file).lastModified()
+            File(URI(file)).lastModified()
         }
     }
 
@@ -553,12 +538,8 @@ class IntelliJIDE(
         throw NotImplementedError("onDidChangeActiveTextEditor not implemented yet")
     }
 
-    override suspend fun pathSep(): String {
-        return File.separator
-    }
-
     private fun setFileOpen(filepath: String, open: Boolean = true) {
-        val file = LocalFileSystem.getInstance().findFileByPath(filepath)
+        val file = LocalFileSystem.getInstance().findFileByPath(URI(filepath).path)
 
         file?.let {
             if (open) {
@@ -580,10 +561,6 @@ class IntelliJIDE(
             return dirs
         }
 
-        if (this.workspacePath != null) {
-            return arrayOf(this.workspacePath)
-        }
-
-        return arrayOf()
+        return listOfNotNull(project.guessProjectDir()?.url).toTypedArray()
     }
 }

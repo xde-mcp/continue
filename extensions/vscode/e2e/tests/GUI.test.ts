@@ -18,12 +18,9 @@ describe("GUI Test", () => {
   beforeEach(async function () {
     this.timeout(DEFAULT_TIMEOUT.XL);
 
-    await GUIActions.openGui();
+    await GUIActions.toggleGui();
 
-    view = new WebView();
-    driver = view.getDriver();
-
-    await GUIActions.switchToReactIframe(driver);
+    ({ view, driver } = await GUIActions.switchToReactIframe());
     await GUIActions.selectModelFromDropdown(view, "TEST LLM");
   });
 
@@ -31,6 +28,10 @@ describe("GUI Test", () => {
     this.timeout(DEFAULT_TIMEOUT.XL);
 
     await view.switchBack();
+    await TestUtils.waitForSuccess(
+      async () => (await GUISelectors.getContinueExtensionBadge(view)).click(),
+      DEFAULT_TIMEOUT.XS,
+    );
     await new EditorView().closeAllEditors();
   });
 
@@ -212,7 +213,7 @@ describe("GUI Test", () => {
        */
       await view.switchBack();
       await (await GUISelectors.getHistoryNavButton(view)).click();
-      await GUIActions.switchToReactIframe(driver);
+      await GUIActions.switchToReactIframe();
 
       await (await GUISelectors.getNthHistoryTableRow(view, 0)).click();
 
@@ -222,7 +223,7 @@ describe("GUI Test", () => {
        * END OF SWITCHING BACK AND FORTH
        */
 
-      await GUIActions.switchToReactIframe(driver);
+      await GUIActions.switchToReactIframe();
       await (await GUISelectors.getNthHistoryTableRow(view, 0)).click();
 
       await GUISelectors.getThreadMessageByText(view, messagePair1.llmResponse);
