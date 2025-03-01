@@ -33,7 +33,7 @@
           "description": "The presence penalty Aof the completion.",
           "type": "number"
         },
-        "frequencePenalty": {
+        "frequencyPenalty": {
           "title": "Frequency Penalty",
           "description": "The frequency penalty of the completion.",
           "type": "number"
@@ -838,6 +838,7 @@
                       "claude-2",
                       "claude-instant-1",
                       "claude-3-5-sonnet-latest",
+                      "claude-3-7-sonnet-20250219",
                       "claude-3-opus-20240229",
                       "claude-3-sonnet-20240229",
                       "claude-3-haiku-20240307",
