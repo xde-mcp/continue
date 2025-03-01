@@ -48,7 +48,7 @@ jobs:
 
       - name: Add upstream repository
         run: |
-          git remote add upstream https://github.com/sourcegraph/continue.git
+          git remote add upstream https://github.com/continuedev/continue.git
           git fetch upstream
           git merge upstream/main  # 或者 upstream/master，取决于原始仓库的主分支
 
