@@ -30,9 +30,10 @@ export const PROVIDER_TOOL_SUPPORT: Record<
     return model.toLowerCase().includes("gemini");
   },
   bedrock: (model) => {
-    // Support only Claude 3.5 models on Bedrock, mirroring anthropic configuration
+    // For Bedrock, only support Claude Sonnet models with versions 3.5/3-5 and 3.7/3-7
     if (
-      ["claude-3-5", "claude-3.5"].some((part) =>
+      model.toLowerCase().includes("sonnet") &&
+      ["claude-3-5", "claude-3.5", "claude-3-7", "claude-3.7"].some((part) =>
         model.toLowerCase().includes(part),
       )
     ) {
@@ -67,6 +68,14 @@ export const PROVIDER_TOOL_SUPPORT: Record<
         "firefunction-v2",
         "mistral",
       ].some((part) => model.toLowerCase().startsWith(part))
+    ) {
+      return true;
+    }
+  },
+  sambanova: (model) => {
+    // https://docs.sambanova.ai/cloud/docs/capabilities/function-calling
+    if (
+      model.toLowerCase().startsWith("meta-llama-3")
     ) {
       return true;
     }
