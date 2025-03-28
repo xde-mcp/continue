@@ -164,7 +164,11 @@ export interface ILLM extends LLMOptions {
 }
 
 export interface ModelInstaller {
-  installModel(modelName: string, signal: AbortSignal, progressReporter?: (task: string, increment: number, total: number) => void): Promise<any>;
+  installModel(
+    modelName: string,
+    signal: AbortSignal,
+    progressReporter?: (task: string, increment: number, total: number) => void,
+  ): Promise<any>;
 }
 
 export type ContextProviderType = "normal" | "query" | "submenu";
@@ -232,7 +236,6 @@ export interface SiteIndexingConfig {
   maxDepth?: number;
   faviconUrl?: string;
   useLocalCrawling?: boolean;
-  rootUrl?: string; // Currently only used by preindexed docs
 }
 
 export interface DocsIndexingDetails {
@@ -240,7 +243,6 @@ export interface DocsIndexingDetails {
   config: SiteIndexingConfig;
   indexingStatus: IndexingStatus | undefined;
   chunks: Chunk[];
-  isPreIndexedDoc: boolean;
 }
 
 export interface IContextProvider {
@@ -312,7 +314,12 @@ export interface CompletionOptions extends BaseCompletionOptions {
   model: string;
 }
 
-export type ChatMessageRole = "user" | "assistant" | "system" | "tool";
+export type ChatMessageRole =
+  | "user"
+  | "assistant"
+  | "thinking"
+  | "system"
+  | "tool";
 
 export type TextMessagePart = {
   type: "text";
@@ -357,6 +364,14 @@ export interface UserChatMessage {
   content: MessageContent;
 }
 
+export interface ThinkingChatMessage {
+  role: "thinking";
+  content: MessageContent;
+  signature?: string;
+  redactedThinking?: string;
+  toolCalls?: ToolCallDelta[];
+}
+
 export interface AssistantChatMessage {
   role: "assistant";
   content: MessageContent;
@@ -371,6 +386,7 @@ export interface SystemChatMessage {
 export type ChatMessage =
   | UserChatMessage
   | AssistantChatMessage
+  | ThinkingChatMessage
   | SystemChatMessage
   | ToolResultChatMessage;
 
@@ -421,7 +437,7 @@ export interface PromptLog {
   completion: string;
 }
 
-export type MessageModes = "chat" | "edit";
+export type MessageModes = "chat" | "edit" | "agent";
 
 export type ToolStatus =
   | "generating"
@@ -748,6 +764,7 @@ export interface ContinueSDK {
 export interface SlashCommand {
   name: string;
   description: string;
+  prompt?: string;
   params?: { [key: string]: any };
   run: (sdk: ContinueSDK) => AsyncGenerator<string | undefined>;
 }
@@ -851,11 +868,7 @@ export interface ContextProviderWithParams {
   params: { [key: string]: any };
 }
 
-export interface SlashCommandDescription {
-  name: string;
-  description: string;
-  params?: { [key: string]: any };
-}
+export type SlashCommandDescription = Omit<SlashCommand, "run">;
 
 export interface CustomCommand {
   name: string;
@@ -890,10 +903,13 @@ export interface Tool {
   };
 
   displayTitle: string;
-  wouldLikeTo: string;
+  wouldLikeTo?: string;
+  isCurrently?: string;
+  hasAlready?: string;
   readonly: boolean;
   uri?: string;
   faviconUrl?: string;
+  group: string;
 }
 
 interface ToolChoice {
@@ -921,6 +937,8 @@ export interface BaseCompletionOptions {
   prediction?: Prediction;
   tools?: Tool[];
   toolChoice?: ToolChoice;
+  reasoning?: boolean;
+  reasoningBudgetTokens?: number;
 }
 
 export interface ModelCapability {
@@ -1027,8 +1045,54 @@ export interface SSEOptions {
 export type TransportOptions = StdioOptions | WebSocketOptions | SSEOptions;
 
 export interface MCPOptions {
+  name: string;
+  id: string;
   transport: TransportOptions;
   faviconUrl?: string;
+  timeout?: number;
+}
+
+export type MCPConnectionStatus =
+  | "connecting"
+  | "connected"
+  | "error"
+  | "not-connected";
+
+export interface MCPPrompt {
+  name: string;
+  description?: string;
+  arguments?: {
+    name: string;
+    description?: string;
+    required?: boolean;
+  }[];
+}
+
+// Leaving here to ideate on
+// export type ContinueConfigSource = "local-yaml" | "local-json" | "hub-assistant" | "hub"
+
+export interface MCPResource {
+  name: string;
+  uri: string;
+  description?: string;
+  mimeType?: string;
+}
+export interface MCPTool {
+  name: string;
+  description?: string;
+  inputSchema: {
+    type: "object";
+    properties?: Record<string, any>;
+  };
+}
+
+export interface MCPServerStatus extends MCPOptions {
+  status: MCPConnectionStatus;
+  errors: string[];
+
+  prompts: MCPPrompt[];
+  tools: MCPTool[];
+  resources: MCPResource[];
 }
 
 export interface ContinueUIConfig {
@@ -1052,6 +1116,11 @@ export interface ExperimentalModelRoles {
   repoMapFileSelection?: string;
   inlineEdit?: string;
   applyCodeBlock?: string;
+}
+
+export interface ExperimentalMCPOptions {
+  transport: TransportOptions;
+  faviconUrl?: string;
 }
 
 export type EditStatus =
@@ -1137,7 +1206,7 @@ export interface ExperimentalConfig {
    * This is needed to crawl a large number of documentation sites that are dynamically rendered.
    */
   useChromiumForDocsCrawling?: boolean;
-  modelContextProtocolServers?: MCPOptions[];
+  modelContextProtocolServers?: ExperimentalMCPOptions[];
 }
 
 export interface AnalyticsConfig {
@@ -1231,8 +1300,8 @@ export interface ContinueConfig {
   systemMessage?: string;
   completionOptions?: BaseCompletionOptions;
   requestOptions?: RequestOptions;
-  slashCommands?: SlashCommand[];
-  contextProviders?: IContextProvider[];
+  slashCommands: SlashCommand[];
+  contextProviders: IContextProvider[];
   disableSessionTitles?: boolean;
   disableIndexing?: boolean;
   userToken?: string;
@@ -1242,6 +1311,8 @@ export interface ContinueConfig {
   analytics?: AnalyticsConfig;
   docs?: SiteIndexingConfig[];
   tools: Tool[];
+  mcpServerStatuses: MCPServerStatus[];
+  rules?: string[];
   modelsByRole: Record<ModelRole, ILLM[]>;
   selectedModelByRole: Record<ModelRole, ILLM | null>;
   data?: DataDestination[];
@@ -1253,8 +1324,8 @@ export interface BrowserSerializedContinueConfig {
   systemMessage?: string;
   completionOptions?: BaseCompletionOptions;
   requestOptions?: RequestOptions;
-  slashCommands?: SlashCommandDescription[];
-  contextProviders?: ContextProviderDescription[];
+  slashCommands: SlashCommandDescription[];
+  contextProviders: ContextProviderDescription[];
   disableIndexing?: boolean;
   disableSessionTitles?: boolean;
   userToken?: string;
@@ -1263,6 +1334,8 @@ export interface BrowserSerializedContinueConfig {
   analytics?: AnalyticsConfig;
   docs?: SiteIndexingConfig[];
   tools: Tool[];
+  mcpServerStatuses: MCPServerStatus[];
+  rules?: string[];
   usePlatform: boolean;
   tabAutocompleteOptions?: Partial<TabAutocompleteOptions>;
   modelsByRole: Record<ModelRole, ModelDescription[]>;

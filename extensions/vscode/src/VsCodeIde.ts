@@ -4,7 +4,7 @@ import { exec } from "node:child_process";
 import { Range } from "core";
 import { EXTENSION_NAME } from "core/control-plane/env";
 import { GetGhTokenArgs } from "core/protocol/ide";
-import { editConfigJson, getConfigJsonPath } from "core/util/paths";
+import { editConfigFile, getConfigJsonPath } from "core/util/paths";
 import * as URI from "uri-js";
 import * as vscode from "vscode";
 
@@ -155,26 +155,39 @@ class VsCodeIde implements IDE {
               );
 
               // Remove free trial models
-              editConfigJson((config) => {
-                let tabAutocompleteModel = undefined;
-                if (Array.isArray(config.tabAutocompleteModel)) {
-                  tabAutocompleteModel = config.tabAutocompleteModel.filter(
-                    (model) => model.provider !== "free-trial",
-                  );
-                } else if (
-                  config.tabAutocompleteModel?.provider === "free-trial"
-                ) {
-                  tabAutocompleteModel = undefined;
-                }
+              editConfigFile(
+                (config) => {
+                  let tabAutocompleteModel = undefined;
+                  if (Array.isArray(config.tabAutocompleteModel)) {
+                    tabAutocompleteModel = config.tabAutocompleteModel.filter(
+                      (model) => model.provider !== "free-trial",
+                    );
+                  } else if (
+                    config.tabAutocompleteModel?.provider === "free-trial"
+                  ) {
+                    tabAutocompleteModel = undefined;
+                  }
 
-                return {
-                  ...config,
-                  models: config.models.filter(
-                    (model) => model.provider !== "free-trial",
-                  ),
-                  tabAutocompleteModel,
-                };
-              });
+                  return {
+                    ...config,
+                    models: config.models.filter(
+                      (model) => model.provider !== "free-trial",
+                    ),
+                    tabAutocompleteModel,
+                  };
+                },
+                (config) => {
+                  return {
+                    ...config,
+                    models: config.models?.filter(
+                      (model) =>
+                        !(
+                          "provider" in model && model.provider === "free-trial"
+                        ),
+                    ),
+                  };
+                },
+              );
             } else if (selection === "Learn more") {
               vscode.env.openExternal(
                 vscode.Uri.parse(
@@ -216,13 +229,22 @@ class VsCodeIde implements IDE {
           )
           .then((selection) => {
             if (selection === "Remove for me") {
-              editConfigJson((configJson) => {
-                configJson.models = configJson.models.filter(
-                  (model) => model.provider !== "free-trial",
-                );
-                configJson.tabAutocompleteModel = undefined;
-                return configJson;
-              });
+              editConfigFile(
+                (configJson) => {
+                  configJson.models = configJson.models.filter(
+                    (model) => model.provider !== "free-trial",
+                  );
+                  configJson.tabAutocompleteModel = undefined;
+                  return configJson;
+                },
+                (config) => {
+                  config.models = config.models?.filter(
+                    (model) =>
+                      !("provider" in model && model.provider === "free-trial"),
+                  );
+                  return config;
+                },
+              );
             } else if (selection === "Open Assistant configuration") {
               this.openFile(getConfigJsonPath());
             }
@@ -545,6 +567,7 @@ class VsCodeIde implements IDE {
         "-i", // Case-insensitive search
         "-C",
         "2", // Show 2 lines of context
+        "--heading", // Only show filepath once per result
         "-e",
         query, // Pattern to search for
         ".", // Directory to search in
@@ -573,9 +596,51 @@ class VsCodeIde implements IDE {
   }
 
   async getSearchResults(query: string): Promise<string> {
-    const results = [];
+    const results: string[] = [];
     for (const dir of await this.getWorkspaceDirs()) {
-      results.push(await this._searchDir(query, dir));
+      const dirResults = await this._searchDir(query, dir);
+
+      const keepLines: string[] = [];
+
+      function countLeadingSpaces(line: string) {
+        return line?.match(/^ */)?.[0].length ?? 0;
+      }
+
+      // function formatLine(line: string, sectionIndent: number): string {
+      //   return line.replace(new RegExp(`^[ ]{0,${sectionIndent}}`), "");
+      // }
+
+      let leading = false;
+      let sectionIndent = 0;
+      // let sectionTrim = 0;
+      for (const line of dirResults.split("\n").filter((l) => !!l)) {
+        if (line.startsWith("./") || line === "--") {
+          leading = true;
+          keepLines.push(line);
+          continue;
+        }
+
+        if (leading) {
+          // Exclude leading single-char lines
+          if (line.trim().length > 1) {
+            // Record spacing at first non-single char line
+            leading = false;
+            sectionIndent = countLeadingSpaces(line);
+            keepLines.push(line);
+          }
+          continue;
+        }
+        // Exclude trailing
+        // TODO may exclude wanted results for lines that look like
+        // ./filename
+        //      thisThing
+        //   relevantThing
+        //
+        if (countLeadingSpaces(line) >= sectionIndent) {
+          keepLines.push(line);
+        }
+      }
+      results.push(keepLines.join("\n"));
     }
 
     return results.join("\n\n");

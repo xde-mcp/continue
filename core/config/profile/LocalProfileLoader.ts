@@ -38,6 +38,7 @@ export default class LocalProfileLoader implements IProfileLoader {
       uri:
         overrideAssistantFile?.path ??
         localPathToUri(getPrimaryConfigFilePath()),
+      rawYaml: undefined,
     };
     this.description = description;
     if (overrideAssistantFile?.content) {
@@ -64,6 +65,7 @@ export default class LocalProfileLoader implements IProfileLoader {
       undefined,
       this.description.id,
       this.overrideAssistantFile?.path,
+      null,
     );
 
     this.description.errors = result.errors;
