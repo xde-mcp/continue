@@ -2,11 +2,19 @@ import { RangeInFile } from "..";
 import { NextEditProvider } from "./NextEditProvider";
 import { NextEditOutcome } from "./types";
 
-interface ProcessedItem {
+export interface ProcessedItem {
   location: RangeInFile;
   outcome: NextEditOutcome; // Result from the model
 }
 
+/**
+ * Keeps a queue of the broken down diffs from a changed editable range, as determined in core/nextEdit/diff.ts
+ */
+/**
+ * This is where the chain is stored. Think of it as a regular queue, but being a singleton because we need one source of truth for the chain.
+ * I originally intended this to be a separate data structure to handle prefetching next edit outcomes from the model in the background.
+ * Due to subpar results, lack of satisfactory next edit location suggestion algorithms and token cost/latency issues, I scratched the idea.
+ */
 export class PrefetchQueue {
   private static instance: PrefetchQueue | null = null;
 
@@ -59,6 +67,11 @@ export class PrefetchQueue {
       !this.abortController.signal.aborted
     ) {
       const location = this.dequeueUnprocessed();
+      console.log("processing:");
+      console.log(
+        location?.range.start.line + " to " + location?.range.end.line,
+      );
+
       if (!location) break;
 
       try {
@@ -70,12 +83,20 @@ export class PrefetchQueue {
             this.usingFullFileDiff,
           );
 
-        if (!outcome) continue;
+        if (!outcome) {
+          console.log("outcome is undefined");
+          continue;
+        }
 
         this.enqueueProcessed({
           location,
           outcome,
         });
+
+        console.log(
+          "the length of processed queue after processing is:",
+          this.processedQueue.length,
+        );
       } catch (error) {
         if (!this.abortController.signal.aborted) {
           // Handle error
@@ -113,6 +134,16 @@ export class PrefetchQueue {
 
   peekProcessed(): ProcessedItem | undefined {
     return this.processedQueue[0];
+  }
+
+  peekThreeProcessed(): void {
+    const count = Math.min(3, this.processedQueue.length);
+    const firstThree = this.processedQueue.slice(0, count);
+    firstThree.forEach((item, index) => {
+      console.log(
+        `Item ${index + 1}: ${item.location.range.start.line} to ${item.location.range.end.line}`,
+      );
+    });
   }
 
   setPreetchLimit(limit: number): void {

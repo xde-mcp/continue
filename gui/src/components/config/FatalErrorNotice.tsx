@@ -3,9 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/Auth";
 import { IdeMessengerContext } from "../../context/IdeMessenger";
 import { useAppSelector } from "../../redux/hooks";
-import { ROUTES } from "../../util/navigation";
+import { CONFIG_ROUTES } from "../../util/navigation";
 import Alert from "../gui/Alert";
-import { useLump } from "../mainInput/Lump/LumpContext";
 
 export const FatalErrorIndicator = () => {
   const { refreshProfiles } = useAuth();
@@ -18,12 +17,10 @@ export const FatalErrorIndicator = () => {
     return configError?.some((error) => error.fatal);
   }, [configError]);
 
-  const { setSelectedSection, selectedSection } = useLump();
   const configLoading = useAppSelector((state) => state.config.loading);
 
-  const showLumpErrorSection = () => {
-    navigate(ROUTES.HOME);
-    setSelectedSection("error");
+  const showConfigPage = () => {
+    navigate(CONFIG_ROUTES.AGENTS);
   };
 
   const { selectedProfile } = useAuth();
@@ -32,10 +29,10 @@ export const FatalErrorIndicator = () => {
     return null;
   }
 
-  const displayName =
-    selectedProfile?.title ??
-    `${selectedProfile?.fullSlug?.ownerSlug}/${selectedProfile?.fullSlug?.packageSlug}` ??
-    "assistant";
+  const displayName = selectedProfile
+    ? (selectedProfile.title ??
+      `${selectedProfile.fullSlug?.ownerSlug}/${selectedProfile.fullSlug?.packageSlug}`)
+    : "agent";
 
   return (
     <Alert type="error" className="mx-2 my-1 px-2">
@@ -67,10 +64,7 @@ export const FatalErrorIndicator = () => {
             Reload
           </div>
         )}
-        <div
-          onClick={showLumpErrorSection}
-          className={`cursor-pointer underline transition-all ${selectedSection === "error" ? "opacity-0" : ""}`}
-        >
+        <div onClick={showConfigPage} className="cursor-pointer underline">
           View
         </div>
       </div>

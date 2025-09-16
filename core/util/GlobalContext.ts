@@ -1,6 +1,10 @@
 import fs from "node:fs";
 
 import { ModelRole } from "@continuedev/config-yaml";
+import {
+  OAuthClientInformationFull,
+  OAuthTokens,
+} from "@modelcontextprotocol/sdk/shared/auth.js";
 
 import { SiteIndexingConfig } from "..";
 import {
@@ -35,12 +39,19 @@ export type GlobalContextType = {
    */
   hasDismissedConfigTsNoticeJetBrains: boolean;
   hasAlreadyCreatedAPromptFile: boolean;
+  hasShownUnsupportedPlatformWarning: boolean;
   showConfigUpdateToast: boolean;
   isSupportedLanceDbCpuTargetForLinux: boolean;
   sharedConfig: SharedConfigSchema;
   failedDocs: SiteIndexingConfig[];
-  shownDeprecatedProviderWarnings: {
-    [providerTitle: string]: boolean;
+  shownDeprecatedProviderWarnings: { [providerTitle: string]: boolean };
+  autoUpdateCli: boolean;
+  mcpOauthStorage: {
+    [serverUrl: string]: {
+      clientInformation?: OAuthClientInformationFull;
+      tokens?: OAuthTokens;
+      codeVerifier?: string;
+    };
   };
 };
 
@@ -54,16 +65,7 @@ export class GlobalContext {
   ) {
     const filepath = getGlobalContextFilePath();
     if (!fs.existsSync(filepath)) {
-      fs.writeFileSync(
-        filepath,
-        JSON.stringify(
-          {
-            [key]: value,
-          },
-          null,
-          2,
-        ),
-      );
+      fs.writeFileSync(filepath, JSON.stringify({ [key]: value }, null, 2));
     } else {
       const data = fs.readFileSync(filepath, "utf-8");
 
@@ -72,8 +74,25 @@ export class GlobalContext {
         parsed = JSON.parse(data);
       } catch (e: any) {
         console.warn(
-          `Error updating global context, deleting corrupted file: ${e}`,
+          `Error updating global context, attempting to salvage security-sensitive values: ${e}`,
         );
+
+        // Attempt to salvage security-sensitive values before deleting
+        let salvaged: Partial<GlobalContextType> = {};
+        try {
+          // Try to partially parse the corrupted data to extract sharedConfig
+          const match = data.match(/"sharedConfig"\s*:\s*({[^}]*})/);
+          if (match) {
+            const sharedConfigObj = JSON.parse(match[1]);
+            const salvagedSharedConfig = salvageSharedConfig(sharedConfigObj);
+            if (Object.keys(salvagedSharedConfig).length > 0) {
+              salvaged.sharedConfig = salvagedSharedConfig;
+            }
+          }
+        } catch {
+          // If salvage fails, continue with empty salvaged object
+        }
+
         // Delete the corrupted file and recreate it fresh
         try {
           fs.unlinkSync(filepath);
@@ -82,17 +101,11 @@ export class GlobalContext {
             `Error deleting corrupted global context file: ${deleteError}`,
           );
         }
-        // Recreate the file with just the new value
-        fs.writeFileSync(
-          filepath,
-          JSON.stringify(
-            {
-              [key]: value,
-            },
-            null,
-            2,
-          ),
-        );
+
+        // Recreate the file with salvaged values plus the new value
+        const newData = { ...salvaged, [key]: value };
+
+        fs.writeFileSync(filepath, JSON.stringify(newData, null, 2));
         return;
       }
 
@@ -148,10 +161,7 @@ export class GlobalContext {
     newValues: Partial<SharedConfigSchema>,
   ): SharedConfigSchema {
     const currentSharedConfig = this.getSharedConfig();
-    const updatedSharedConfig = {
-      ...currentSharedConfig,
-      ...newValues,
-    };
+    const updatedSharedConfig = { ...currentSharedConfig, ...newValues };
     this.update("sharedConfig", updatedSharedConfig);
     return updatedSharedConfig;
   }
@@ -163,10 +173,7 @@ export class GlobalContext {
   ): GlobalContextModelSelections {
     const currentSelections = this.get("selectedModelsByProfileId") ?? {};
     const forProfile = currentSelections[profileId] ?? {};
-    const newSelections = {
-      ...forProfile,
-      [role]: title,
-    };
+    const newSelections = { ...forProfile, [role]: title };
 
     this.update("selectedModelsByProfileId", {
       ...currentSelections,

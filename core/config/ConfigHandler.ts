@@ -17,10 +17,10 @@ import {
   ControlPlaneSessionInfo,
 } from "../control-plane/AuthTypes.js";
 import { getControlPlaneEnv } from "../control-plane/env.js";
-import { logger } from "../util/logger.js";
+import { PolicySingleton } from "../control-plane/PolicySingleton.js";
+import { Logger } from "../util/Logger.js";
 import { Telemetry } from "../util/posthog.js";
 import {
-  ASSISTANTS,
   getAllDotContinueDefinitionFiles,
   LoadAssistantFilesOptions,
 } from "./loadLocalAssistants.js";
@@ -45,7 +45,7 @@ export class ConfigHandler {
 
   private organizations: OrgWithProfiles[] = [];
   currentProfile: ProfileLifecycleManager | null;
-  currentOrg: OrgWithProfiles;
+  currentOrg: OrgWithProfiles | null;
   totalConfigReloads: number = 0;
 
   public isInitialized: Promise<void>;
@@ -59,40 +59,23 @@ export class ConfigHandler {
 
   constructor(
     private readonly ide: IDE,
-    private ideSettingsPromise: Promise<IdeSettings>,
     private llmLogger: ILLMLogger,
-    sessionInfoPromise: Promise<ControlPlaneSessionInfo | undefined>,
+    initialSessionInfoPromise: Promise<ControlPlaneSessionInfo | undefined>,
   ) {
-    this.ide = ide;
-    this.ideSettingsPromise = ideSettingsPromise;
-
     this.controlPlaneClient = new ControlPlaneClient(
-      sessionInfoPromise,
-      ideSettingsPromise,
-      this.ide.getIdeInfo(),
+      initialSessionInfoPromise,
+      this.ide,
     );
 
     // This profile manager will always be available
     this.globalLocalProfileManager = new ProfileLifecycleManager(
-      new LocalProfileLoader(
-        ide,
-        ideSettingsPromise,
-        this.controlPlaneClient,
-        this.llmLogger,
-      ),
+      new LocalProfileLoader(ide, this.controlPlaneClient, this.llmLogger),
       this.ide,
     );
 
-    // Just to be safe, always force a default personal org with local profile manager
-    this.currentProfile = this.globalLocalProfileManager;
-    const personalOrg: OrgWithProfiles = {
-      currentProfile: this.globalLocalProfileManager,
-      profiles: [this.globalLocalProfileManager],
-      ...this.PERSONAL_ORG_DESC,
-    };
-
-    this.currentOrg = personalOrg;
-    this.organizations = [personalOrg];
+    this.currentOrg = null;
+    this.currentProfile = null;
+    this.organizations = [];
 
     this.initter = new EventEmitter();
     this.isInitialized = new Promise((resolve) => {
@@ -104,6 +87,7 @@ export class ConfigHandler {
   }
 
   private workspaceDirs: string[] | null = null;
+
   async getWorkspaceId() {
     if (!this.workspaceDirs) {
       this.workspaceDirs = await this.ide.getWorkspaceDirs();
@@ -120,6 +104,13 @@ export class ConfigHandler {
     const signal = this.cascadeAbortController.signal;
     this.workspaceDirs = null; // forces workspace dirs reload
 
+    // Always update globalLocalProfileManager before recreating all the loaders
+    // during every cascadeInit so it holds the most recent controlPlaneClient.
+    this.globalLocalProfileManager = new ProfileLifecycleManager(
+      new LocalProfileLoader(this.ide, this.controlPlaneClient, this.llmLogger),
+      this.ide,
+    );
+
     try {
       const { orgs, errors } = await this.getOrgs();
 
@@ -132,10 +123,10 @@ export class ConfigHandler {
       const firstNonPersonal = orgs.find(
         (org) => org.id !== this.PERSONAL_ORG_DESC.id,
       );
-      const fallback = firstNonPersonal ?? orgs[0];
-      // note, ignoring case of zero orgs since should never happen
+      const fallback: OrgWithProfiles | null =
+        firstNonPersonal ?? orgs[0] ?? null;
 
-      let selectedOrg: OrgWithProfiles;
+      let selectedOrg: OrgWithProfiles | null;
       if (currentSelection) {
         const match = orgs.find((org) => org.id === currentSelection);
         if (match) {
@@ -153,12 +144,12 @@ export class ConfigHandler {
 
       this.globalContext.update("lastSelectedOrgIdForWorkspace", {
         ...selectedOrgs,
-        [workspaceId]: selectedOrg.id,
+        [workspaceId]: selectedOrg?.id,
       });
 
       this.organizations = orgs;
       this.currentOrg = selectedOrg;
-      this.currentProfile = selectedOrg.currentProfile;
+      this.currentProfile = selectedOrg?.currentProfile;
 
       await this.reloadConfig(reason, errors);
     } catch (e) {
@@ -179,10 +170,27 @@ export class ConfigHandler {
     const isSignedIn = await this.controlPlaneClient.isSignedIn();
     if (isSignedIn) {
       try {
-        const orgDescs = await this.controlPlaneClient.listOrganizations();
+        // TODO use policy returned with org, not policy endpoint
+        const policyResponse = await this.controlPlaneClient.getPolicy();
+        PolicySingleton.getInstance().policy = policyResponse;
+        const orgDescriptions =
+          await this.controlPlaneClient.listOrganizations();
+        const orgsWithPolicy = orgDescriptions.map((d) => ({
+          ...d,
+          policy: policyResponse?.policy,
+        }));
+
+        if (policyResponse?.policy?.allowOtherOrgs === false) {
+          if (orgsWithPolicy.length === 0) {
+            return { orgs: [] };
+          } else {
+            const firstOrg = await this.getNonPersonalHubOrg(orgsWithPolicy[0]);
+            return { orgs: [firstOrg] };
+          }
+        }
         const orgs = await Promise.all([
           this.getPersonalHubOrg(),
-          ...orgDescs.map((org) => this.getNonPersonalHubOrg(org)),
+          ...orgsWithPolicy.map((org) => this.getNonPersonalHubOrg(org)),
         ]);
         // TODO make try/catch more granular here, to catch specific org errors
         return { orgs };
@@ -192,6 +200,8 @@ export class ConfigHandler {
           message: `Error loading Continue Hub assistants${e instanceof Error ? ":\n" + e.message : ""}`,
         });
       }
+    } else {
+      PolicySingleton.getInstance().policy = null;
     }
     // Load local org if not signed in or hub orgs fail
     try {
@@ -236,7 +246,6 @@ export class ConfigHandler {
           versionSlug: assistant.configResult.config?.version ?? "latest",
           controlPlaneClient: this.controlPlaneClient,
           ide: this.ide,
-          ideSettingsPromise: this.ideSettingsPromise,
           llmLogger: this.llmLogger,
           rawYaml: assistant.rawYaml,
           orgScopeId: orgScopeId,
@@ -328,7 +337,7 @@ export class ConfigHandler {
 
   async getLocalProfiles(options: LoadAssistantFilesOptions) {
     /**
-     * Users can define as many local assistants as they want in a `.continue/assistants` folder
+     * Users can define as many local agents as they want in a `.continue/agents` (or previous .continue/assistants) folder
      */
 
     // Local customization disabled for on-premise deployments
@@ -347,12 +356,16 @@ export class ConfigHandler {
       const assistantFiles = await getAllDotContinueDefinitionFiles(
         this.ide,
         options,
-        ASSISTANTS,
+        "assistants",
       );
-      const profiles = assistantFiles.map((assistant) => {
+      const agentFiles = await getAllDotContinueDefinitionFiles(
+        this.ide,
+        options,
+        "agents",
+      );
+      const profiles = [...assistantFiles, ...agentFiles].map((assistant) => {
         return new LocalProfileLoader(
           this.ide,
-          this.ideSettingsPromise,
           this.controlPlaneClient,
           this.llmLogger,
           assistant,
@@ -377,7 +390,6 @@ export class ConfigHandler {
 
   // Ide settings change: refresh session and cascade refresh from the top
   async updateIdeSettings(ideSettings: IdeSettings) {
-    this.ideSettingsPromise = Promise.resolve(ideSettings);
     this.abortCascade();
     await this.cascadeInit("IDE settings update");
   }
@@ -415,8 +427,7 @@ export class ConfigHandler {
     if (reload) {
       this.controlPlaneClient = new ControlPlaneClient(
         Promise.resolve(sessionInfo),
-        this.ideSettingsPromise,
-        this.ide.getIdeInfo(),
+        this.ide,
       );
       this.abortCascade();
       await this.cascadeInit("Control plane session info update");
@@ -426,7 +437,7 @@ export class ConfigHandler {
 
   // Org id: check id validity, save selection, switch and reload
   async setSelectedOrgId(orgId: string, profileId?: string) {
-    if (orgId === this.currentOrg.id) {
+    if (orgId === this.currentOrg?.id) {
       return;
     }
     const org = this.organizations.find((org) => org.id === orgId);
@@ -454,6 +465,9 @@ export class ConfigHandler {
 
   // Profile id: check id validity, save selection, switch and reload
   async setSelectedProfileId(profileId: string) {
+    if (!this.currentOrg) {
+      throw new Error(`No org selected`);
+    }
     if (
       this.currentProfile &&
       profileId === this.currentProfile.profileDescription.id
@@ -490,10 +504,7 @@ export class ConfigHandler {
     if (!this.currentProfile) {
       return {
         config: undefined,
-        errors: [
-          { message: "Current profile not found", fatal: true },
-          ...(injectErrors ?? []),
-        ],
+        errors: injectErrors,
         configLoadInterrupted: true,
       };
     }
@@ -562,7 +573,7 @@ export class ConfigHandler {
     if (!this.currentProfile) {
       return {
         config: undefined,
-        errors: [{ message: "Current profile not found", fatal: true }],
+        errors: undefined,
         configLoadInterrupted: true,
       };
     }
@@ -575,7 +586,7 @@ export class ConfigHandler {
     if (!this.currentProfile) {
       return {
         config: undefined,
-        errors: [{ message: "Current profile not found", fatal: true }],
+        errors: undefined,
         configLoadInterrupted: true,
       };
     }
@@ -585,7 +596,7 @@ export class ConfigHandler {
     );
 
     if (config.errors?.length) {
-      logger.warn("Errors loading config: ", config.errors);
+      Logger.error("Errors loading config: ", config.errors);
     }
     return config;
   }
@@ -598,11 +609,15 @@ export class ConfigHandler {
     if (!openProfileId) {
       return;
     }
-    const profile = this.currentOrg.profiles.find(
+    const profile = this.currentOrg?.profiles.find(
       (p) => p.profileDescription.id === openProfileId,
     );
+    if (!profile) {
+      console.error(`Profile ${profileId} not found`);
+      return;
+    }
 
-    if (profile?.profileDescription.profileType === "local") {
+    if (profile.profileDescription.profileType === "local") {
       const configFile = element?.sourceFile ?? profile.profileDescription.uri;
       await this.ide.openFile(configFile);
     } else {

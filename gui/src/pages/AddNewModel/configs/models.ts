@@ -679,7 +679,6 @@ export const models: { [key: string]: ModelPackage } = {
       model: "granite-code",
       contextLength: 20_000,
       title: "Granite Code",
-      systemMessage: `You are Granite Chat, an AI language model developed by IBM. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior. You always respond to greetings (for example, hi, hello, g'day, morning, afternoon, evening, night, what's up, nice to meet you, sup, etc) with "Hello! I am Granite Chat, created by IBM. How can I help you today?". Please do not say anything else and do not start a conversation.`,
     },
     providerOptions: ["ollama", "lmstudio", "llama.cpp", "replicate"],
     icon: "ibm.png",
@@ -1154,8 +1153,6 @@ export const models: { [key: string]: ModelPackage } = {
       model: "gpt-4o",
       contextLength: 128_000,
       title: "GPT-4o",
-      systemMessage:
-        "You are an expert software developer. You give helpful and concise responses.",
     },
     providerOptions: ["openai", "askSage"],
     icon: "openai.png",
@@ -1169,8 +1166,6 @@ export const models: { [key: string]: ModelPackage } = {
       model: "gpt-4o-mini",
       contextLength: 128_000,
       title: "GPT-4o mini",
-      systemMessage:
-        "You are an expert software developer. You give helpful and concise responses.",
     },
     providerOptions: ["openai", "askSage"],
     icon: "openai.png",
@@ -1189,42 +1184,27 @@ export const models: { [key: string]: ModelPackage } = {
     icon: "openai.png",
     isOpenSource: false,
   },
-  claude35Sonnet: {
-    title: "Claude 3.5 Sonnet",
+  claude4Sonnet: {
+    title: "Claude 4 Sonnet",
     description:
-      "Anthropic's most intelligent model, but much less expensive than Claude 3 Opus",
+      "The most intelligent model in the Claude 4 series. Costing lesser than Claude 4 Opus.",
     params: {
-      model: "claude-3-5-sonnet-latest",
+      model: "claude-4-sonnet-latest",
       contextLength: 200_000,
-      title: "Claude 3.5 Sonnet",
+      title: "Claude 4 Sonnet",
       apiKey: "",
     },
     providerOptions: ["anthropic", "askSage"],
     icon: "anthropic.png",
     isOpenSource: false,
   },
-  claude3Opus: {
-    title: "Claude 3 Opus",
-    description:
-      "The most capable model in the Claude 3 series, beating GPT-4 on many benchmarks",
+  claude41Opus: {
+    title: "Claude 4.1 Opus",
+    description: "The most capable model in the Claude 4 series",
     params: {
-      model: "claude-3-opus-20240229",
+      model: "claude-opus-4-1-20250805",
       contextLength: 200_000,
-      title: "Claude 3 Opus",
-      apiKey: "",
-    },
-    providerOptions: ["anthropic", "askSage"],
-    icon: "anthropic.png",
-    isOpenSource: false,
-  },
-  claude3Sonnet: {
-    title: "Claude 3 Sonnet",
-    description:
-      "The second most capable model in the Claude 3 series: ideal balance of intelligence and speed",
-    params: {
-      model: "claude-3-sonnet-20240229",
-      contextLength: 200_000,
-      title: "Claude 3 Sonnet",
+      title: "Claude 4.1 Opus",
       apiKey: "",
     },
     providerOptions: ["anthropic", "askSage"],
@@ -1424,8 +1404,6 @@ export const models: { [key: string]: ModelPackage } = {
       model: "gpt4-gov",
       contextLength: 128_000,
       title: "GPT-4 gov",
-      systemMessage:
-        "You are an expert software developer. You give helpful and concise responses.", // Need to set this on the Ask Sage side or just configure it in here to be discussed
     },
     providerOptions: ["askSage"],
     icon: "openai.png",
@@ -1439,8 +1417,6 @@ export const models: { [key: string]: ModelPackage } = {
       model: "gpt-4o-gov",
       contextLength: 128_000,
       title: "GPT-4o-gov",
-      systemMessage:
-        "You are an expert software developer. You give helpful and concise responses.", // Need to set this on the Ask Sage side or just configure it in here to be discussed
     },
     providerOptions: ["askSage"],
     icon: "openai.png",
@@ -1453,8 +1429,6 @@ export const models: { [key: string]: ModelPackage } = {
       model: "gpt-gov",
       contextLength: 8096,
       title: "GPT-3.5-Turbo gov",
-      systemMessage:
-        "You are an expert software developer. You give helpful and concise responses.", // Need to set this on the Ask Sage side or just configure it in here to be discussed
     },
     providerOptions: ["askSage"],
     icon: "openai.png",
@@ -1468,8 +1442,6 @@ export const models: { [key: string]: ModelPackage } = {
       model: "gpt-4o-mini-gov",
       contextLength: 128_000,
       title: "GPT-4o-mini gov",
-      systemMessage:
-        "You are an expert software developer. You give helpful and concise responses.", // Need to set this on the Ask Sage side or just configure it in here to be discussed
     },
     providerOptions: ["askSage"],
     icon: "openai.png",
@@ -1509,8 +1481,6 @@ export const models: { [key: string]: ModelPackage } = {
       model: "gpt-o1",
       contextLength: 128_000,
       title: "GPT-o1",
-      systemMessage:
-        "You are an expert software developer. You give helpful and concise responses.",
     },
     providerOptions: ["askSage"],
     icon: "openai.png",
@@ -1524,8 +1494,6 @@ export const models: { [key: string]: ModelPackage } = {
       model: "gpt-o1-mini",
       contextLength: 128_000,
       title: "GPT-o1-mini",
-      systemMessage:
-        "You are an expert software developer. You give helpful and concise responses.",
     },
     providerOptions: ["askSage"],
     icon: "openai.png",
@@ -1539,8 +1507,6 @@ export const models: { [key: string]: ModelPackage } = {
       model: "gpt-o3-mini",
       contextLength: 200_000,
       title: "GPT-o3-mini",
-      systemMessage:
-        "You are an expert software developer. You give helpful and concise responses.",
     },
     providerOptions: ["askSage"],
     icon: "openai.png",
@@ -1554,8 +1520,6 @@ export const models: { [key: string]: ModelPackage } = {
       model: "aws-bedrock-claude-35-sonnet-gov",
       contextLength: 200_000,
       title: "Claude 3.5 Sonnet gov",
-      systemMessage:
-        "You are an expert software developer. You give helpful and concise responses.",
     },
     providerOptions: ["askSage"],
     icon: "anthropic.png",

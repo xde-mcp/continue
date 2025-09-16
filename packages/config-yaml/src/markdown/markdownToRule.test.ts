@@ -5,7 +5,7 @@ describe("markdownToRule", () => {
   // Use a mock PackageIdentifier for testing
   const mockId: PackageIdentifier = {
     uriType: "file",
-    filePath: "/path/to/file",
+    fileUri: "/path/to/file",
   };
 
   it("should convert markdown with frontmatter to a rule", () => {
@@ -115,7 +115,7 @@ name: glob pattern testing
 
       const result = markdownToRule(content, {
         uriType: "file",
-        filePath: "/",
+        fileUri: "/",
       });
       expect(result.globs).toBe("/**/src/**/Dockerfile");
     });
@@ -151,7 +151,7 @@ name: glob pattern testing
 
       const result = markdownToRule(content, {
         uriType: "file",
-        filePath: "/Documents/myproject/.continue/rules/rule1.md",
+        fileUri: "/Documents/myproject/.continue/rules/rule1.md",
       });
       expect(result.globs).toBe(".git");
     });
@@ -261,6 +261,66 @@ This is a rule with alwaysApply explicitly set to false.`;
     const result = markdownToRule(content, mockId);
     expect(result.alwaysApply).toBe(false);
   });
+
+  it("should include invokable from frontmatter when true", () => {
+    const content = `---
+globs: "**/test/**/*.kt"
+name: Test Rule
+invokable: true
+---
+
+# Test Rule
+
+This is an invokable rule.`;
+
+    const result = markdownToRule(content, mockId);
+    expect(result.invokable).toBe(true);
+  });
+
+  it("should include invokable from frontmatter when false", () => {
+    const content = `---
+globs: "**/test/**/*.kt"
+name: Test Rule
+invokable: false
+---
+
+# Test Rule
+
+This is a non-invokable rule.`;
+
+    const result = markdownToRule(content, mockId);
+    expect(result.invokable).toBe(false);
+  });
+
+  it("should handle invokable with alwaysApply together", () => {
+    const content = `---
+alwaysApply: true
+invokable: true
+name: Test Rule
+---
+
+# Test Rule
+
+This is a rule with both alwaysApply and invokable.`;
+
+    const result = markdownToRule(content, mockId);
+    expect(result.alwaysApply).toBe(true);
+    expect(result.invokable).toBe(true);
+  });
+
+  it("should not include invokable when not in frontmatter", () => {
+    const content = `---
+globs: "**/test/**/*.kt"
+name: Test Rule
+---
+
+# Test Rule
+
+This is a rule without invokable property.`;
+
+    const result = markdownToRule(content, mockId);
+    expect(result.invokable).toBeUndefined();
+  });
 });
 
 describe("getRuleName", () => {
@@ -268,7 +328,7 @@ describe("getRuleName", () => {
     const frontmatter = { name: "Custom Rule Name" };
     const id: PackageIdentifier = {
       uriType: "file",
-      filePath: "/path/to/my-rule.md",
+      fileUri: "/path/to/my-rule.md",
     };
 
     const result = getRuleName(frontmatter, id);
@@ -279,7 +339,7 @@ describe("getRuleName", () => {
     const frontmatter = {};
     const id: PackageIdentifier = {
       uriType: "file",
-      filePath: "/long/path/to/rules/my-rule.md",
+      fileUri: "/long/path/to/rules/my-rule.md",
     };
 
     const result = getRuleName(frontmatter, id);
@@ -290,7 +350,7 @@ describe("getRuleName", () => {
     const frontmatter = {};
     const id: PackageIdentifier = {
       uriType: "file",
-      filePath: "C:\\long\\path\\to\\rules\\my-rule.md",
+      fileUri: "C:\\long\\path\\to\\rules\\my-rule.md",
     };
 
     const result = getRuleName(frontmatter, id);
@@ -301,7 +361,7 @@ describe("getRuleName", () => {
     const frontmatter = {};
     const id: PackageIdentifier = {
       uriType: "file",
-      filePath: "/path/to\\rules/my-rule.md",
+      fileUri: "/path/to\\rules/my-rule.md",
     };
 
     const result = getRuleName(frontmatter, id);
@@ -312,7 +372,7 @@ describe("getRuleName", () => {
     const frontmatter = {};
     const id: PackageIdentifier = {
       uriType: "file",
-      filePath: "my-rule.md",
+      fileUri: "my-rule.md",
     };
 
     const result = getRuleName(frontmatter, id);
@@ -323,7 +383,7 @@ describe("getRuleName", () => {
     const frontmatter = {};
     const id: PackageIdentifier = {
       uriType: "file",
-      filePath: "rules/my-rule.md",
+      fileUri: "rules/my-rule.md",
     };
 
     const result = getRuleName(frontmatter, id);
@@ -349,7 +409,7 @@ describe("getRuleName", () => {
     const frontmatter = { name: "Override Name" };
     const id: PackageIdentifier = {
       uriType: "file",
-      filePath: "/very/long/path/to/rules/original-name.md",
+      fileUri: "/very/long/path/to/rules/original-name.md",
     };
 
     const result = getRuleName(frontmatter, id);
@@ -360,7 +420,7 @@ describe("getRuleName", () => {
     const frontmatter = { name: "" };
     const id: PackageIdentifier = {
       uriType: "file",
-      filePath: "/path/to/rules/my-rule.md",
+      fileUri: "/path/to/rules/my-rule.md",
     };
 
     const result = getRuleName(frontmatter, id);
