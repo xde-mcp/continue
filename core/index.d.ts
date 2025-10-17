@@ -462,7 +462,7 @@ export interface PromptLog {
   completion: string;
 }
 
-export type MessageModes = "chat" | "agent" | "plan";
+export type MessageModes = "chat" | "agent" | "plan" | "background";
 
 export type ToolStatus =
   | "generating" // Tool call arguments are being streamed from the LLM
@@ -478,6 +478,7 @@ interface ToolCallState {
   toolCall: ToolCall;
   status: ToolStatus;
   parsedArgs: any;
+  processedArgs?: Record<string, any>; // Added in preprocesing step
   output?: ContextItem[];
   tool?: Tool;
 }
@@ -1349,11 +1350,13 @@ export type InternalStdioMcpOptions = BaseInternalMCPOptions & {
 export type InternalStreamableHttpMcpOptions = BaseInternalMCPOptions & {
   type?: "streamable-http";
   url: string;
+  apiKey?: string;
 };
 
 export type InternalSseMcpOptions = BaseInternalMCPOptions & {
   type?: "sse";
   url: string;
+  apiKey?: string;
 };
 
 export type InternalWebsocketMcpOptions = BaseInternalMCPOptions & {
@@ -1849,7 +1852,7 @@ export type RuleSource =
   | "colocated-markdown"
   | "json-systemMessage"
   | ".continuerules"
-  | "agent-file";
+  | "agentFile";
 
 export interface RuleWithSource {
   name?: string;
@@ -1873,6 +1876,16 @@ export interface CompiledMessagesResult {
   compiledChatMessages: ChatMessage[];
   didPrune: boolean;
   contextPercentage: number;
+}
+
+export interface AddToChatPayload {
+  data: AddToChatPayloadItem[];
+}
+
+interface AddToChatPayloadItem {
+  type: "file" | "folder";
+  fullPath: string;
+  name: string;
 }
 
 export interface MessageOption {

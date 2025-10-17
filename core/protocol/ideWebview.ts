@@ -3,10 +3,13 @@ import { ToWebviewFromIdeOrCoreProtocol } from "./webview";
 
 import {
   AcceptOrRejectDiffPayload,
+  AddToChatPayload,
   ApplyState,
   ApplyToFilePayload,
+  ContextItemWithId,
   HighlightedCodePayload,
   MessageContent,
+  RangeInFile,
   RangeInFileWithContents,
   SetCodeToEditPayload,
   ShowFilePayload,
@@ -49,6 +52,32 @@ export type ToIdeFromWebviewProtocol = ToIdeFromWebviewOrCoreProtocol & {
   "edit/addCurrentSelection": [undefined, void];
   "edit/clearDecorations": [undefined, void];
   "session/share": [{ sessionId: string }, void];
+  createBackgroundAgent: [
+    {
+      content: MessageContent;
+      contextItems: ContextItemWithId[];
+      selectedCode: RangeInFile[];
+      organizationId?: string;
+      agent?: string;
+    },
+    void,
+  ];
+  listBackgroundAgents: [
+    { organizationId?: string; limit?: number },
+    {
+      agents: Array<{
+        id: string;
+        name: string | null;
+        status: string;
+        repoUrl: string;
+        createdAt: string;
+        metadata?: {
+          github_repo?: string;
+        };
+      }>;
+      totalCount: number;
+    },
+  ];
 };
 
 export type ToWebviewFromIdeProtocol = ToWebviewFromIdeOrCoreProtocol & {
@@ -78,4 +107,5 @@ export type ToWebviewFromIdeProtocol = ToWebviewFromIdeOrCoreProtocol & {
   exitEditMode: [undefined, void];
   focusEdit: [undefined, void];
   generateRule: [undefined, void];
+  addToChat: [AddToChatPayload, void];
 };
