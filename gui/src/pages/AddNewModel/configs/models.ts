@@ -898,20 +898,7 @@ export const models: { [key: string]: ModelPackage } = {
     providerOptions: ["gemini"],
     isOpenSource: false,
   },
-  gemini25ProExp: {
-    title: "Gemini 2.5 Pro Experimental",
-    description:
-      "Experimental version of Gemini 2.5 Pro with enhanced capabilities and larger output limits.",
-    params: {
-      title: "Gemini 2.5 Pro Experimental",
-      model: "gemini-2.5-pro-exp-03-25",
-      contextLength: 1_048_576,
-      apiKey: "<API_KEY>",
-    },
-    icon: "gemini.png",
-    providerOptions: ["gemini"],
-    isOpenSource: false,
-  },
+
   gemini25Pro: {
     title: "Gemini 2.5 Pro",
     description:
@@ -1092,6 +1079,19 @@ export const models: { [key: string]: ModelPackage } = {
     icon: "openai.png",
     isOpenSource: false,
   },
+  gpt5Codex: {
+    title: "GPT-5 Codex",
+    description:
+      "OpenAI's most advanced code generation model, optimized for programming tasks",
+    params: {
+      model: "gpt-5-codex",
+      contextLength: 400_000,
+      title: "GPT-5 Codex",
+    },
+    providerOptions: ["openai"],
+    icon: "openai.png",
+    isOpenSource: false,
+  },
   gpt4turbo: {
     title: "GPT-4 Turbo",
     description:
@@ -1155,7 +1155,7 @@ export const models: { [key: string]: ModelPackage } = {
       title: "Claude 4 Sonnet",
       apiKey: "",
     },
-    providerOptions: ["anthropic"],
+    providerOptions: ["anthropic", "replicate"],
     icon: "anthropic.png",
     isOpenSource: false,
   },
